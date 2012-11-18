@@ -1,13 +1,13 @@
 module AL.Compile (
 		Database(..),
-		compile
+		compile'
 	) where
 
 import Control.Monad (liftM)
 import Data.Maybe (catMaybes, isJust)
 import Data.Char (isUpper)
 import qualified Data.Map as M
-import Data.List (foldl')
+import Data.List (foldl', union)
 
 import AL.Core
 import AL.Parse
@@ -20,8 +20,8 @@ data Database = Database {
 
 -- |The compiler function takes a string and converts
 -- it into a AL database.
-compile :: String -> Maybe Database
-compile = liftM compileClause . liftM catMaybes . parseAL
+compile' :: String -> Maybe Database
+compile' = liftM compileClause . liftM catMaybes . parseAL
 
 
 compileClause :: Clause -> Database
@@ -34,8 +34,8 @@ evalRule :: Database -> Rule -> Database
 evalRule (Database m) r = Database (insertion m)
 				where 
 					insertion = case r of
-						(Relation tar vals) -> M.insertWith (++) tar [vals]
-						(Imply tar ts val vs) -> M.insertWith (++) val $ 
+						(Relation tar vals) -> M.insertWith union tar [vals]
+						(Imply tar ts val vs) -> M.insertWith union val $ 
 							implifications (evalVariables ts (m M.! tar)) vs
 
 
@@ -53,10 +53,10 @@ evalVariables vars rs = filter ((==length vars).length) $ map (go vars) rs
 -- Calculates the set after implification.
 implifications :: [[(String, String)]] -> [String] -> [[String]]
 implifications [] _ = []
-implifications (x:xs) ys = map go ys:implifications xs ys
+implifications (x:xs) ys = union [map go ys] $ implifications xs ys
 					where
 						go y 
-							| isUpper $head y = match y x
+							| isUpper $ head y = match y x
 							| otherwise = y
 						match t [] = t
 						match t ((n,v):ls) = if n == t then v else match t ls

@@ -1,0 +1,22 @@
+
+package: primitive-0.4.1
+os: linux
+arch: x86_64
+compiler: ghc-7.4.1
+client: cabal-install-0.14.0
+flags:
+dependencies: ghc-prim-0.2.0.0 base-4.5.0.0
+install-outcome: InstallOk
+docs-outcome: NotTried
+tests-outcome: NotTried
+
+package: vector-0.9.1
+os: linux
+arch: x86_64
+compiler: ghc-7.4.1
+client: cabal-install-0.14.0
+flags: -unsafechecks -internalchecks boundschecks
+dependencies: primitive-0.4.1 ghc-prim-0.2.0.0 base-4.5.0.0
+install-outcome: InstallOk
+docs-outcome: NotTried
+tests-outcome: NotTried

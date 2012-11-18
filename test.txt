@@ -7,4 +7,5 @@ $talk bob adam;
 $talk peter bob;
 $talk charles adam;
 
+$talk X Y -> $talk Y X;
 $talk X Y -> $working X;

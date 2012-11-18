@@ -1,0 +1,10 @@
+$worker bob;
+$worker peter;
+$worker adam;
+$worker charles;
+
+$talk bob adam;
+$talk peter bob;
+$talk charles adam;
+
+$talk X Y -> $working X;

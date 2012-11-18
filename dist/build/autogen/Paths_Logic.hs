@@ -15,10 +15,10 @@ version :: Version
 version = Version {versionBranch = [0,1,0,0], versionTags = []}
 bindir, libdir, datadir, libexecdir :: FilePath
 
-bindir     = "/home/adam/Documents/Haskell/Logic/cabal-dev//bin"
-libdir     = "/home/adam/Documents/Haskell/Logic/cabal-dev//lib/Logic-0.1.0.0/ghc-7.4.1"
-datadir    = "/home/adam/Documents/Haskell/Logic/cabal-dev//share/Logic-0.1.0.0"
-libexecdir = "/home/adam/Documents/Haskell/Logic/cabal-dev//libexec"
+bindir     = "/home/adam/.cabal/bin"
+libdir     = "/home/adam/.cabal/lib/Logic-0.1.0.0/ghc-7.4.1"
+datadir    = "/home/adam/.cabal/share/Logic-0.1.0.0"
+libexecdir = "/home/adam/.cabal/libexec"
 
 getBinDir, getLibDir, getDataDir, getLibexecDir :: IO FilePath
 getBinDir = catchIO (getEnv "Logic_bindir") (\_ -> return bindir)

@@ -47,7 +47,7 @@ getEntriesMarked db@(Database m) vars query = evalVariables vars $ getEntries db
 commonMarkedEntries :: Database -> [String] -> String -> String -> [(String, String)]
 commonMarkedEntries db vars q1 q2 = intersect es1 es2
 	where
-		getEs = filter ((`elem`vars).fst) . concat . getEntriesMarked db vars
+		getEs = filter ((`elem`vars) . fst) . concat . getEntriesMarked db vars
 		es1 = getEs q1
 		es2 = getEs q2
 
@@ -61,6 +61,7 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 		go (v:vs) (r:rs) = if isUpper (head v) then (v, r):go vs rs
 							else if v == r then ("_", r): go vs rs
 							else []
+
 
 debug :: IO Database
 debug = readFile "test.txt" >>= (return . fromJust . compile')

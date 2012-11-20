@@ -9,17 +9,39 @@ import Control.Monad (liftM)
 
 import AL.Core(Rule(..))
 
-data ALVal = Var String [String] | Val String | OP String | NoVal String
+data ALVal = Var String [String] | Val String | OP String | NoVal String | Compiled Rule
 
-compileRule :: [ALVal] -> Maybe Rule
-compileRule [(Var n1 xs1),(OP "->"),(Var n2 xs2)] = Just $ Imply n1 xs1 n2 xs2
-compileRule [(Var n xs)] = Just $ Relation n xs
-compileRule _ = Nothing
+defaultSymbols :: String
+defaultSymbols = "-<>!"
+
+ops :: [(String, (Rule -> Rule -> Rule))]
+ops = [
+		("<-", Imply),
+		("!<-", ImplyNot),
+		("&", And)
+	]
+
+
+makeRel :: ALVal -> Maybe Rule
+makeRel (Var n xs) = Just $ Relation n xs
+makeRel _ = Nothing
+
+
+compileOPs :: [(String, (Rule -> Rule -> Rule))] -> String -> ALVal -> [ALVal] -> Maybe Rule
+compileOPs ops s a bs = lookup s ops >>=
+						(\op -> constructData [a] >>= (Just . (\ma -> op ma)) ) >>=
+						(\opa -> constructData bs >>= (Just . (\mbs -> opa mbs)) )
+
+
+constructData :: [ALVal] -> Maybe Rule
+constructData (a:(OP s):bs) = compileOPs ops s a bs
+constructData [x@(Var n xs)] = makeRel x
+constructData _ = Nothing
 
 -- |The parseAL function takes a AL string and turns it into
 -- a Maybe list of Maybe rules.
 parseAL :: String -> Maybe [Maybe Rule]
-parseAL s = liftM (map compileRule) $ case parse rules "Parse error" s of
+parseAL s = liftM (map constructData) $ case parse rules "Parse error" s of
 	Left _ -> Nothing
 	Right x -> Just x
 
@@ -31,21 +53,20 @@ rule = sepBy1 var spaces
 
 var :: Parser ALVal
 var = choice [
-			(liftM OP $ many1 $ oneOf "->"),
+			(liftM OP $ many1 $ oneOf defaultSymbols),
 			pVar,
 			(liftM Val $ many1 $ letter <|> digit), 
 			(liftM NoVal $ many anyChar)
 		]
 
-
 pVar :: Parser ALVal
 pVar = do
 	char '$'
-	r <- endBy (many1 $ letter <|> digit) $ (try symbols) <|> spaces
+	r <- endBy (many1 $ letter <|> digit) $ try symbols <|> spaces
 	return $ Var (head r) $ tail r
 
 spaces :: Parser ()
 spaces = skipMany1 $ space
 
 symbols :: Parser ()
-symbols = lookAhead $ many space >> oneOf "->;" >> return ()
+symbols = lookAhead $ many space >> oneOf (defaultSymbols ++ ";") >> return ()

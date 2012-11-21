@@ -6,6 +6,7 @@ import Text.ParserCombinators.Parsec hiding(spaces)
 import Text.Parsec hiding (try, spaces)
 import Data.Maybe (isJust, catMaybes, fromJust)
 import Control.Monad (liftM)
+import Control.Applicative ((<*>))
 
 import AL.Core(Rule(..))
 
@@ -28,9 +29,7 @@ makeRel _ = Nothing
 
 
 compileOPs :: [(String, (Rule -> Rule -> Rule))] -> String -> ALVal -> [ALVal] -> Maybe Rule
-compileOPs ops s a bs = lookup s ops >>=
-						(\op -> constructData [a] >>= (Just . (\ma -> op ma)) ) >>=
-						(\opa -> constructData bs >>= (Just . (\mbs -> opa mbs)) )
+compileOPs ops s a bs = lookup s ops <*> constructData [a] <*> constructData bs
 
 
 constructData :: [ALVal] -> Maybe Rule

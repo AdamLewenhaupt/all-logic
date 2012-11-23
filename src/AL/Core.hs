@@ -7,7 +7,8 @@ module AL.Core (
 data Rule = Relation String [String] | 
 			Imply Rule Rule |
 			ImplyNot Rule Rule |
-			And Rule Rule
+			And Rule Rule |
+			Or Rule Rule
 	deriving(Show)
 
 -- |The clause data-type provides a wrapper for a list of rules as

@@ -62,6 +62,7 @@ merge ts = map catMaybes . map (go ts)
 -- a list of candidates from said rule.
 compileCandidates :: Database -> Rule -> Maybe [[(String, String)]]
 compileCandidates db (Relation n xs) = Just $ getEntriesMarked db xs n
+compileCandidates db (Or r1 r2) = Just union <*> compileCandidates db r1 <*> compileCandidates db r2
 compileCandidates db (And r1 r2) = Just common <*> compileCandidates db r1 <*> compileCandidates db r2
 compileCandidates _ _ = Nothing
 

@@ -14,13 +14,14 @@ data ALVal = Var String [String] | Val String | OP String | NoVal String | Compi
 	deriving(Show)
 
 defaultSymbols :: String
-defaultSymbols = "-<>!&"
+defaultSymbols = "-<>!&|"
 
 ops :: [(String, (Rule -> Rule -> Rule))]
 ops = [
 		("<-", Imply),
 		("!<-", ImplyNot),
-		("&", And)
+		("&", And),
+		("|", Or)
 	]
 
 

@@ -8,6 +8,7 @@ import Data.Maybe (catMaybes, isJust, fromJust)
 import Data.Char (isUpper)
 import qualified Data.Map as M
 import Data.List (foldl', union, (\\), intersect)
+import Control.Applicative ((<*>))
 
 import AL.Core
 import AL.Parse
@@ -61,11 +62,18 @@ merge ts = map catMaybes . map (go ts)
 -- a list of candidates from said rule.
 compileCandidates :: Database -> Rule -> Maybe [[(String, String)]]
 compileCandidates db (Relation n xs) = Just $ getEntriesMarked db xs n
+compileCandidates db (And r1 r2) = Just common <*> compileCandidates db r1 <*> compileCandidates db r2
 compileCandidates _ _ = Nothing
 
-
-common = undefined
-
+common :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
+common xs ys = catMaybes $ go seed tar
+	where
+		(seed,tar) = if length xs <= length ys then (xs,ys) else (ys,xs)
+		go [] _ = []
+		go (a:as) bs = final:go as bs
+			where
+				final = if length items > 0 then Just $ head items else Nothing
+				items = catMaybes $ map (cmp a) bs
 
 cmp :: [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
 cmp xs ys = if res then Just tar else Nothing

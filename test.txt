@@ -6,5 +6,7 @@ $worker charles;
 $talk bob adam;
 $talk peter bob;
 
+$cool adam;
+
 $talk X Y <- $talk Y X;
-$work X <- $talk X Y;
+$work X <- $talk X Y & $cool X;

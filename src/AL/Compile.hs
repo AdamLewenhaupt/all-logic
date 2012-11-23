@@ -30,51 +30,63 @@ compileClause = foldl' constructDB db
 		db = Database M.empty
 
 
+-- |A recursive function that creates a database from a rule clause.
 constructDB :: Database -> Rule -> Database
-constructDB db@(Database m) rule = case rule of
-	(Relation n xs) -> Database $ M.insertWith union n [xs] m
-	(Imply (Relation n xs) r2) -> Database $ M.insertWith union n ( 
-		impliedMarkedEntries db xs n $ evalRule db r2) m
-	_ -> db
+constructDB db@(Database m) r = Database $ case r of 
+		(Relation n xs) -> M.insertWith union n [xs] m 
+		(Imply (Relation n xs) candidates) -> case (imply db xs candidates) of
+			Just entries -> M.insertWith union n entries m
+			Nothing -> m
 
 
-evalRule :: Database -> Rule -> [(String, String)]
-evalRule db (Relation n xs) = getEs db xs n
-evalRule db (And r1 r2) = commonMarkedEntries (evalRule db r1) (evalRule db r2)
 
-
--- 
--- Compiler operations.
---
-commonMarkedEntries :: [(String, String)] -> [(String, String)] -> [(String, String)]
-commonMarkedEntries = intersect
-
-
-impliedMarkedEntries :: Database -> [String] -> String -> [(String, String)] -> [[String]]
-impliedMarkedEntries db tvars tar svars = reverse $ foldl' go [] tvars
+-- |This function generates entries for an implification.
+imply :: Database ->  [String] -> Rule -> Maybe [[String]]
+imply db template candidates = liftM (merge template) implied
 	where
-		go :: [[String]] -> String -> [[String]]
-		go a b
-			| isUpper $ head b = map snd (filter ((==b).fst) svars):a
-			| otherwise = [b]:a
---
--- End of compiler operations.
---
+		implied = compileCandidates db candidates
 
 
-getCmpEntries :: Database -> [String] -> [String] -> String -> String -> ([(String, String)], [(String, String)])
-getCmpEntries db vars1 vars2 q1 q2 = (es1, es2)
-		where
-			es1 = getEs db vars1 q1
-			es2 = getEs db vars2 q2
+-- |This function merges a template with a set of candidates.
+merge :: [String] -> [[(String, String)]] -> [[String]]
+merge ts = map catMaybes . map (go ts)
+	where
+		go [] _ = []
+		go (x:xs) i
+			| isUpper $ head x = lookup x i:go xs i
+			| otherwise = Just x:go xs i
 
-getEs :: Database -> [String] -> String -> [(String, String)]
-getEs db vars = filter ((`elem`vars) . fst) . concat . getEntriesMarked db vars
 
+-- |This recursive function takes a database and a rule and try to determine
+-- a list of candidates from said rule.
+compileCandidates :: Database -> Rule -> Maybe [[(String, String)]]
+compileCandidates db (Relation n xs) = Just $ getEntriesMarked db xs n
+compileCandidates _ _ = Nothing
+
+
+common = undefined
+
+
+cmp :: [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
+cmp xs ys = if res then Just tar else Nothing
+	where
+		res = and $ map ($tar) tests
+		tests = map (any.(==)) seed
+		cxs = comparable xs
+		cys = comparable ys
+		(seed,tar) = if length cxs <= length cys then (cxs,cys) else (cys,cxs)
+
+
+comparable :: [(String, String)] -> [(String, String)]
+comparable = filter (isUpper . head . fst)
+
+
+-- |Extends the root wrapper giving back the information with variables marked.
 getEntriesMarked :: Database -> [String] -> String -> [[(String, String)]]
 getEntriesMarked db@(Database m) vars query = evalVariables vars $ getEntries db query
 
 
+-- |Root wrapper for getting database information.
 getEntries :: Database -> String -> [[String]]
 getEntries db@(Database m) query = dmap db M.! query
 
@@ -90,12 +102,6 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 							else []
 
 
-combinator :: [a] -> [a] -> [[a]]
-combinator first second = go first
-	where
-		go [] = []
-		go (x:xs) = (x:second):go xs
-
-
+-- For debugging
 debug :: IO Database
 debug = readFile "test.txt" >>= (return . fromJust . compile')

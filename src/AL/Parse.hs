@@ -11,9 +11,10 @@ import Control.Applicative ((<*>))
 import AL.Core(Rule(..))
 
 data ALVal = Var String [String] | Val String | OP String | NoVal String | Compiled Rule
+	deriving(Show)
 
 defaultSymbols :: String
-defaultSymbols = "-<>!"
+defaultSymbols = "-<>!&"
 
 ops :: [(String, (Rule -> Rule -> Rule))]
 ops = [

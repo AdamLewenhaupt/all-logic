@@ -6,5 +6,5 @@ $worker charles;
 $talk bob adam;
 $talk peter bob;
 
-$talk Y X <- $talk X Y;
-$work X <- $worker X & $talk X Y;
+$talk X Y <- $talk Y X;
+$work X <- $talk X Y;

@@ -1,6 +1,7 @@
 module AL.Compile (
-		Database(..),
-		compile'
+		Database(..)
+		, compile'
+		, tests
 	) where
 
 import Control.Monad (liftM)
@@ -9,15 +10,17 @@ import Data.Char (isUpper)
 import qualified Data.Map as M
 import Data.List (foldl', union, (\\), intersect)
 import Control.Applicative ((<*>))
+import Test.HUnit
 
 import AL.Core
-import AL.Parse
+import AL.Parse hiding (tests)
 
 -- |The database class stores all the information needed
 -- to fetch a query.
 data Database = Database {
 						dmap :: M.Map String [[String]]
 					}
+					
 
 -- |The compiler function takes a string and converts
 -- it into a AL database.
@@ -109,6 +112,12 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 		go (v:vs) (r:rs) = if isUpper (head v) then (v, r):go vs rs
 							else if v == r then ("_", r): go vs rs
 							else []
+
+
+-- Testing
+tests = test [
+		"Relation compile" ~: M.fromList [("work", [["bob"]])] ~=? dmap (constructDB (Database M.empty) $ Relation "work" ["bob"])
+	]
 
 
 -- For debugging

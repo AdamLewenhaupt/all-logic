@@ -1,5 +1,6 @@
 module AL.Parse (
 		parseAL
+		,tests
 	) where
 
 import Text.ParserCombinators.Parsec hiding(spaces)
@@ -7,6 +8,7 @@ import Text.Parsec hiding (try, spaces)
 import Data.Maybe (isJust, catMaybes, fromJust)
 import Control.Monad (liftM)
 import Control.Applicative ((<*>))
+import Test.HUnit
 
 import AL.Core(Rule(..))
 
@@ -71,3 +73,9 @@ spaces = skipMany1 $ space
 
 symbols :: Parser ()
 symbols = lookAhead $ many space >> oneOf (defaultSymbols ++ ";") >> return ()
+
+
+-- Testing
+tests = test [
+		"simple eval" ~: Just [Just $ Relation "love" ["romeo", "julia"], Nothing] ~=? parseAL "$love romeo julia;"
+	]

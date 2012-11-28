@@ -1,0 +1,4 @@
+#!/bin/bash
+test
+ghc -O2 -fllvm Main.hs -o program
+time ./program

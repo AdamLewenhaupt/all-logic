@@ -23,7 +23,8 @@ ops = [
 		("<-", Imply),
 		("!<-", ImplyNot),
 		("&", And),
-		("|", Or)
+		("|", Or),
+		("&!", AndNot)
 	]
 
 
@@ -49,7 +50,7 @@ parseAL s = liftM (map constructData) $ case parse rules "Parse error" s of
 	Right x -> Just x
 
 rules :: Parser [[ALVal]]
-rules = sepBy1 rule $ do char ';'; skipMany $ char '\n'
+rules = sepBy1 rule $ do char ';'; skipMany $ char '\n' <|> char ' '
 
 rule :: Parser [ALVal]
 rule = sepBy1 var spaces
@@ -78,4 +79,5 @@ symbols = lookAhead $ many space >> oneOf (defaultSymbols ++ ";") >> return ()
 -- Testing
 tests = test [
 		"simple eval" ~: Just [Just $ Relation "love" ["romeo", "julia"], Nothing] ~=? parseAL "$love romeo julia;"
+		, "and not" ~: Just [Just $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]), Nothing] ~=? parseAL "$name X &! $eat X bacon;"
 	]

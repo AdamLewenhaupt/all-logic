@@ -8,7 +8,8 @@ data Rule = Relation String [String] |
 			Imply Rule Rule |
 			ImplyNot Rule Rule |
 			And Rule Rule |
-			Or Rule Rule
+			Or Rule Rule |
+			AndNot Rule Rule
 	deriving(Show, Eq)
 
 -- |The clause data-type provides a wrapper for a list of rules as

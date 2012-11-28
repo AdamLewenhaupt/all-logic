@@ -5,6 +5,6 @@ import AL
 main :: IO ()
 main = do
 	d <- readFile "test.txt"
-	print $ case compile d of
-		Nothing -> []
-		Just x -> query x "work"
+	case compile d of
+		Nothing -> return ()
+		Just x -> print (query x "unhappy")

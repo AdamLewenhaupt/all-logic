@@ -1,4 +1,4 @@
 #!/bin/bash
-test
-ghc -O2 -fllvm Main.hs -o program
+./test
+ghc -O2 -fllvm Main.hs -fforce-recomp -o program
 time ./program

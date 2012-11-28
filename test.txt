@@ -1,12 +1,6 @@
-$worker bob;
-$worker peter;
-$worker adam;
-$worker charles;
+$love romeo julia;
+$love julia romeo;
+$love peter julia;
 
-$talk bob adam;
-$talk peter bob;
-
-$cool adam;
-
-$talk X Y <- $talk Y X;
-$work X <- $talk X Y & $cool X;
+$happy X <- $love X Y & $love Y X;
+$unhappy X <- $love X Y &! $happy X;

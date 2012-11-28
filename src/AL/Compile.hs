@@ -8,7 +8,7 @@ import Control.Monad (liftM)
 import Data.Maybe (catMaybes, isJust, fromJust)
 import Data.Char (isUpper)
 import qualified Data.Map as M
-import Data.List (foldl', union, (\\), intersect)
+import Data.List (foldl', union, (\\), intersect, nub)
 import Control.Applicative ((<*>))
 import Test.HUnit
 
@@ -20,7 +20,7 @@ import AL.Parse hiding (tests)
 data Database = Database {
 						dmap :: M.Map String [[String]]
 					}
-					
+
 
 -- |The compiler function takes a string and converts
 -- it into a AL database.
@@ -66,31 +66,62 @@ merge ts = map catMaybes . map (go ts)
 compileCandidates :: Database -> Rule -> Maybe [[(String, String)]]
 compileCandidates db (Relation n xs) = Just $ getEntriesMarked db xs n
 compileCandidates db (Or r1 r2) = Just union <*> compileCandidates db r1 <*> compileCandidates db r2
-compileCandidates db (And r1 r2) = Just common <*> compileCandidates db r1 <*> compileCandidates db r2
+compileCandidates db (And r1 r2) = fmap nub $ Just common <*> compileCandidates db r1 <*> compileCandidates db r2
+compileCandidates db (AndNot r1 r2) = fmap nub $ Just uncommon <*> compileCandidates db r1 <*> compileCandidates db r2
 compileCandidates _ _ = Nothing
 
-common :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
-common xs ys = catMaybes $ go seed tar
-	where
-		(seed,tar) = if length xs <= length ys then (xs,ys) else (ys,xs)
-		go [] _ = []
-		go (a:as) bs = final:go as bs
-			where
-				final = if length items > 0 then Just $ head items else Nothing
-				items = catMaybes $ map (cmp a) bs
 
-cmp :: [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
-cmp xs ys = if res then Just tar else Nothing
+uncommon :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
+uncommon xs ys = catMaybes $ cmpCandidatesWith cmpUncommon seed tar
 	where
-		res = and $ map ($tar) tests
+		(seed,tar) = shortest xs ys
+
+
+-- |The common function takes two lists of candidates and give back all candidates where
+-- all variables are equal.
+common :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
+common xs ys = catMaybes $ cmpCandidatesWith cmpCommon seed tar
+	where
+		(seed,tar) = shortest xs ys
+
+
+cmpCandidatesWith :: ([(String, String)] -> [(String, String)] -> Maybe [(String, String)]) -> [[(String, String)]] -> [[(String, String)]] -> [Maybe [(String, String)]]
+cmpCandidatesWith _ [] _ = []
+cmpCandidatesWith f (a:as) bs = final:cmpCandidatesWith f as bs
+	where
+		final = if length items > 0 then Just $ head items else Nothing
+		items = catMaybes $ map (f a) bs
+
+-- |The cmpCommon function finds all the candidates where all variables are the same.
+cmpCommon :: [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
+cmpCommon = cmpWith and
+
+
+cmpUncommon :: [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
+cmpUncommon = cmpWith (not . or)
+
+
+-- |The cmpWith function takes a function that takes a function that take a set of bools
+-- and produce a single bool from it where the list of bools are true if there was
+-- a variable match found. If the passed function returns true cmpWith returns the element with most variables.
+cmpWith :: ([Bool] -> Bool) -> [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
+cmpWith f xs ys = if res then Just tar else Nothing
+	where
+		res = f $ map ($tar) tests
 		tests = map (any.(==)) seed
 		cxs = comparable xs
 		cys = comparable ys
-		(seed,tar) = if length cxs <= length cys then (cxs,cys) else (cys,cxs)
+		(seed,tar) = shortest cxs cys
 
 
+-- |Makes a list of candidates comparable through
+-- ripping away all static values and only keeping variables.
 comparable :: [(String, String)] -> [(String, String)]
 comparable = filter (isUpper . head . fst)
+
+
+shortest :: Ord a => [a] -> [a] -> ([a], [a])
+shortest xs ys = if length xs <= length ys then (xs,ys) else (ys,xs) 
 
 
 -- |Extends the root wrapper giving back the information with variables marked.
@@ -116,8 +147,12 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 
 -- Testing
 tests = test [
-		"Relation compile" ~: M.fromList [("work", [["bob"]])] ~=? dmap (constructDB (Database M.empty) $ Relation "work" ["bob"])
+		"Relation compile" ~: M.fromList [("work", [["bob"]])] ~=? dmap (_ce $ Relation "work" ["bob"])
+		, "AndNot compile" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (_tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
 	]
+
+_ce = constructDB (Database M.empty)
+_tdb1 = constructDB $ fromJust $ compile' "$name bob;\n$name steve;\n$eat bob bacon;"
 
 
 -- For debugging

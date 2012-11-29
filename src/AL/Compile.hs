@@ -85,6 +85,7 @@ common xs ys = catMaybes $ cmpCandidatesWith cmpCommon seed tar
 		(seed,tar) = shortest xs ys
 
 
+-- |A higher order function that takes a comparer and applies it to two lists of candidates.
 cmpCandidatesWith :: ([(String, String)] -> [(String, String)] -> Maybe [(String, String)]) -> [[(String, String)]] -> [[(String, String)]] -> [Maybe [(String, String)]]
 cmpCandidatesWith _ [] _ = []
 cmpCandidatesWith f (a:as) bs = final:cmpCandidatesWith f as bs

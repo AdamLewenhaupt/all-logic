@@ -148,17 +148,21 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 
 -- Testing
 tests = test [
-		"uncommon1" ~: [[("X", "peter"), ("Y", "julia")]] ~=? uncommon [[("X", "peter"), ("Y", "julia")]] [[]]
+		"getEntriesMarked1" ~: [[("X", "peter"), ("Y", "julia")], [("X", "julia"), ("Y", "romeo")], [("X", "romeo"), ("Y", "julia")]] 
+			~=? getEntriesMarked _tdb2 ["X", "Y"] "love"
+
+		,"uncommon1" ~: [[("X", "peter"), ("Y", "julia")]] ~=? uncommon [[("X", "peter"), ("Y", "julia")]] [[]]
 		,"uncommon2" ~: [] ~=? uncommon [[("X", "romeo"), ("Y", "julia")]] [[("Y", "julia"), ("X", "romeo")]]
+		,"uncommon3" ~: [[("X", "peter")]] ~=? uncommon (getEntriesMarked _tdb2 ["X", "Y"] "love") (getEntriesMarked _tdb2 ["Y", "X"] "love")
 
 		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap (_ce $ Relation "work" ["bob"])
-		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (_tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
-		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (_tdb2 $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
+		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (constructDB _tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
+		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (constructDB _tdb2 $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
 	]
 
 _ce = constructDB (Database M.empty)
-_tdb1 = constructDB $ fromJust $ compile' "$name bob;$name steve;$eat bob bacon;"
-_tdb2 = constructDB $ fromJust $ compile' "$love romeo julia;$love julia romeo;$love peter julia;"
+_tdb1 = fromJust $ compile' "$name bob;$name steve;$eat bob bacon;"
+_tdb2 = fromJust $ compile' "$love romeo julia;$love julia romeo;$love peter julia;"
 
 
 -- For debugging

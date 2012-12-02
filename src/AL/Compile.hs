@@ -148,7 +148,8 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 
 -- Testing
 tests = test [
-		"cmpUncommon1" ~: Just [("X", "peter"), ("Y", "julia")] ~=? cmpUncommon [("X","peter"), ("Y", "julia")] [ ]
+		-- TODO fix bug.
+		"cmpUncommon1" ~: Just [("X", "peter"), ("Y", "julia")] ~=? cmpUncommon [("X","peter"), ("Y", "julia")] [("Y", "peter"), ("X", "julia")]
 
 		,"getEntriesMarked1" ~: [[("X", "peter"), ("Y", "julia")], [("X", "julia"), ("Y", "romeo")], [("X", "romeo"), ("Y", "julia")]] 
 			~=? getEntriesMarked _tdb2 ["X", "Y"] "love"

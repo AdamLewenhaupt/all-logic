@@ -9,7 +9,7 @@ import Data.Maybe (catMaybes, isJust, fromJust)
 import Data.Char (isUpper)
 import qualified Data.Map as M
 import Data.List (foldl', union, (\\), intersect, nub)
-import Control.Applicative ((<*>))
+import Control.Applicative ((<*>), (<$>))
 import Test.HUnit
 
 import AL.Core
@@ -65,7 +65,7 @@ merge ts = map catMaybes . map (go ts)
 -- a list of candidates from said rule.
 compileCandidates :: Database -> Rule -> Maybe [[(String, String)]]
 compileCandidates db (Relation n xs) = Just $ getEntriesMarked db xs n
-compileCandidates db (Or r1 r2) = Just union <*> compileCandidates db r1 <*> compileCandidates db r2
+compileCandidates db (Or r1 r2) = union <$> compileCandidates db r1 <*> compileCandidates db r2
 compileCandidates db (And r1 r2) = fmap nub $ Just common <*> compileCandidates db r1 <*> compileCandidates db r2
 compileCandidates db (AndNot r1 r2) = fmap nub $ Just uncommon <*> compileCandidates db r1 <*> compileCandidates db r2
 compileCandidates _ _ = Nothing
@@ -109,7 +109,7 @@ cmpWith :: ([Bool] -> Bool) -> [(String, String)] -> [(String, String)] -> Maybe
 cmpWith f xs ys = if res then Just tar else Nothing
 	where
 		res = f $ map ($tar) tests
-		tests = map (any.(==)) seed
+		tests = map elem seed
 		cxs = comparable xs
 		cys = comparable ys
 		(seed,tar) = shortest cxs cys
@@ -148,12 +148,14 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 
 -- Testing
 tests = test [
-		"getEntriesMarked1" ~: [[("X", "peter"), ("Y", "julia")], [("X", "julia"), ("Y", "romeo")], [("X", "romeo"), ("Y", "julia")]] 
+		"cmpUncommon1" ~: Just [("X", "peter"), ("Y", "julia")] ~=? cmpUncommon [("X","peter"), ("Y", "julia")] [ ]
+
+		,"getEntriesMarked1" ~: [[("X", "peter"), ("Y", "julia")], [("X", "julia"), ("Y", "romeo")], [("X", "romeo"), ("Y", "julia")]] 
 			~=? getEntriesMarked _tdb2 ["X", "Y"] "love"
 
 		,"uncommon1" ~: [[("X", "peter"), ("Y", "julia")]] ~=? uncommon [[("X", "peter"), ("Y", "julia")]] [[]]
 		,"uncommon2" ~: [] ~=? uncommon [[("X", "romeo"), ("Y", "julia")]] [[("Y", "julia"), ("X", "romeo")]]
-		,"uncommon3" ~: [[("X", "peter")]] ~=? uncommon (getEntriesMarked _tdb2 ["X", "Y"] "love") (getEntriesMarked _tdb2 ["Y", "X"] "love")
+		,"uncommon3" ~: [[("X", "peter"), ("Y", "julia")]] ~=? uncommon (getEntriesMarked _tdb2 ["X", "Y"] "love") (getEntriesMarked _tdb2 ["Y", "X"] "love")
 
 		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap (_ce $ Relation "work" ["bob"])
 		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (constructDB _tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )

@@ -21,108 +21,55 @@ data Database = Database {
 						dmap :: M.Map String [[String]]
 					}
 
+type Variables = M.Map String [String]
+
+data Clause = Clause {
+		baseRule :: Rule, 
+		variableMap :: Variables
+	}
+
 
 -- |The compiler function takes a string and converts
--- it into a AL database.
+-- it into a AL database if the parse is successfull else Nothing.
 compile' :: String -> Maybe Database
-compile' = liftM compileClause . liftM catMaybes . parseAL
+compile' = liftM (foldl' addClause emptyDB) . liftM (map compileClause) . liftM catMaybes . parseAL
 
 
-compileClause :: Clause -> Database
-compileClause = foldl' constructDB db
+-- |Takes a base rule and creates a clause from it.
+compileClause :: Rule -> Clause
+compileClause r = undefined
+
+
+-- |Transform a clause, saturationg all the variable combinations.
+saturateCandidates :: Database -> Clause -> Clause
+saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (\x -> [x]) $ base
 	where
-		db = Database M.empty
+		base = baseRule clause
+		varMap = variableMap clause
+		varSet = extractVars $ base
+		go acc (name, vars) = M.insertWith go getEntriesMarked db vars name
 
 
--- |A recursive function that creates a database from a rule clause.
-constructDB :: Database -> Rule -> Database
-constructDB db@(Database m) r = Database $ case r of 
-		(Relation n xs) -> M.insertWith union n [xs] m 
-		(Imply (Relation n xs) candidates) -> case (imply db xs candidates) of
-			Just entries -> M.insertWith union n entries m
-			Nothing -> m
+-- |Analyzes a rule, finding all dynamic variables.
+extractVars :: Rule -> [String]
+extractVars = extractRule $ filter (isUpper. head) . snd
 
 
-
--- |This function generates entries for an implification.
-imply :: Database ->  [String] -> Rule -> Maybe [[String]]
-imply db template candidates = liftM (merge template) implied
-	where
-		implied = compileCandidates db candidates
-
-
--- |This function merges a template with a set of candidates.
-merge :: [String] -> [[(String, String)]] -> [[String]]
-merge ts = map catMaybes . map (go ts)
-	where
-		go [] _ = []
-		go (x:xs) i
-			| isUpper $ head x = lookup x i:go xs i
-			| otherwise = Just x:go xs i
+-- |Higher-order function that takes a rule and draws all the data from it.
+extractRule :: Eq a => ((String, [String]) -> [a]) -> Rule -> [a]
+extractRule f (Relation name vars) = f (name, vars)
+extractRule f (AndNot r1 r2) = extractRule f r1 `union` extractRule f r2
+extractRule f (And r1 r2) = extractRule f r1 `union` extractRule f r2
+extractRule f (Imply r1 r2) = extractRule f r1 `union` extractRule f r2
+extractRule f _ = []
 
 
--- |This recursive function takes a database and a rule and try to determine
--- a list of candidates from said rule.
-compileCandidates :: Database -> Rule -> Maybe [[(String, String)]]
-compileCandidates db (Relation n xs) = Just $ getEntriesMarked db xs n
-compileCandidates db (Or r1 r2) = union <$> compileCandidates db r1 <*> compileCandidates db r2
-compileCandidates db (And r1 r2) = fmap nub $ Just common <*> compileCandidates db r1 <*> compileCandidates db r2
-compileCandidates db (AndNot r1 r2) = fmap nub $ Just uncommon <*> compileCandidates db r1 <*> compileCandidates db r2
-compileCandidates _ _ = Nothing
+-- |Adds a clause to a database.
+addClause :: Database -> Clause -> Database
+addClause = undefined
 
-
-uncommon :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
-uncommon xs ys = catMaybes $ cmpCandidatesWith cmpUncommon seed tar
-	where
-		(seed,tar) = shortest xs ys
-
-
--- |The common function takes two lists of candidates and give back all candidates where
--- all variables are equal.
-common :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
-common xs ys = catMaybes $ cmpCandidatesWith cmpCommon seed tar
-	where
-		(seed,tar) = shortest xs ys
-
-
--- |A higher order function that takes a comparer and applies it to two lists of candidates.
-cmpCandidatesWith :: ([(String, String)] -> [(String, String)] -> Maybe [(String, String)]) -> [[(String, String)]] -> [[(String, String)]] -> [Maybe [(String, String)]]
-cmpCandidatesWith _ [] _ = []
-cmpCandidatesWith f (a:as) bs = final:cmpCandidatesWith f as bs
-	where
-		final = if length items > 0 then Just $ head items else Nothing
-		items = catMaybes $ map (f a) bs
-
--- |The cmpCommon function finds all the candidates where all variables are the same.
-cmpCommon :: [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
-cmpCommon = cmpWith and
-
-
-cmpUncommon :: [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
-cmpUncommon = cmpWith (not . or)
-
-
--- |The cmpWith function takes a function that takes a function that take a set of bools
--- and produce a single bool from it where the list of bools are true if there was
--- a variable match found. If the passed function returns true cmpWith returns the element with most variables.
-cmpWith :: ([Bool] -> Bool) -> [(String, String)] -> [(String, String)] -> Maybe [(String, String)]
-cmpWith f xs ys = if res then Just tar else Nothing
-	where
-		res = f $ map ($tar) tests
-		tests = map elem seed
-		cxs = comparable xs
-		cys = comparable ys
-		(seed,tar) = shortest cxs cys
-
-
--- |Makes a list of candidates comparable through
--- ripping away all static values and only keeping variables.
-comparable :: [(String, String)] -> [(String, String)]
-comparable = filter (isUpper . head . fst)
-
-
-shortest :: Ord a => [a] -> [a] -> ([a], [a])
-shortest xs ys = if length xs <= length ys then (xs,ys) else (ys,xs) 
+emptyDB :: Database
+emptyDB = Database M.empty
 
 
 -- |Extends the root wrapper giving back the information with variables marked.
@@ -148,22 +95,14 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 
 -- Testing
 tests = test [
-		-- TODO fix bug.
-		"cmpUncommon1" ~: Just [("X", "peter"), ("Y", "julia")] ~=? cmpUncommon [("X","peter"), ("Y", "julia")] [("Y", "peter"), ("X", "julia")]
+		"extractVars1" ~: ["X", "Y", "Z"] ~=? extractVars (Imply (Relation "w" ["X"]) (And (Relation "bla" ["X", "Y"]) (Relation "bly" ["Z", "X"])))
 
-		,"getEntriesMarked1" ~: [[("X", "peter"), ("Y", "julia")], [("X", "julia"), ("Y", "romeo")], [("X", "romeo"), ("Y", "julia")]] 
-			~=? getEntriesMarked _tdb2 ["X", "Y"] "love"
-
-		,"uncommon1" ~: [[("X", "peter"), ("Y", "julia")]] ~=? uncommon [[("X", "peter"), ("Y", "julia")]] [[]]
-		,"uncommon2" ~: [] ~=? uncommon [[("X", "romeo"), ("Y", "julia")]] [[("Y", "julia"), ("X", "romeo")]]
-		,"uncommon3" ~: [[("X", "peter"), ("Y", "julia")]] ~=? uncommon (getEntriesMarked _tdb2 ["X", "Y"] "love") (getEntriesMarked _tdb2 ["Y", "X"] "love")
-
-		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap (_ce $ Relation "work" ["bob"])
-		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (constructDB _tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
-		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (constructDB _tdb2 $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
+		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap ((_ce . compileClause) $ Relation "work" ["bob"])
+		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (addClause _tdb1 $ compileClause $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
+		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (addClause _tdb2 $ compileClause $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
 	]
 
-_ce = constructDB (Database M.empty)
+_ce = addClause (Database M.empty)
 _tdb1 = fromJust $ compile' "$name bob;$name steve;$eat bob bacon;"
 _tdb2 = fromJust $ compile' "$love romeo julia;$love julia romeo;$love peter julia;"
 

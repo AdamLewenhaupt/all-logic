@@ -1,6 +1,5 @@
 module AL.Core (
-		Rule(..),
-		Clause
+		Rule(..)
 	) where
 
 -- |The Rule type provides all rules that the AL compiler supports.
@@ -11,7 +10,3 @@ data Rule = Relation String [String] |
 			Or Rule Rule |
 			AndNot Rule Rule
 	deriving(Show, Eq)
-
--- |The clause data-type provides a wrapper for a list of rules as
--- a wrapper for later improvements.
-type Clause = [Rule]

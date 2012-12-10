@@ -47,7 +47,7 @@ saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (\x 
 		base = baseRule clause
 		varMap = variableMap clause
 		varSet = extractVars $ base
-		go acc (name, vars) = M.insertWith go getEntriesMarked db vars name
+		go acc (name, vars) = M.union acc $ createVarMap $ getEntriesMarked db vars name
 
 
 -- |Analyzes a rule, finding all dynamic variables.
@@ -68,8 +68,16 @@ extractRule f _ = []
 addClause :: Database -> Clause -> Database
 addClause = undefined
 
+
 emptyDB :: Database
 emptyDB = Database M.empty
+
+
+createVarMap :: [[(String, String)]] -> Variables
+createVarMap = foldl' go M.empty
+	where
+		go acc = M.unionWith (++) acc . foldl' go' M.empty
+		go' acc (name,val) = M.insertWith union name [val] acc
 
 
 -- |Extends the root wrapper giving back the information with variables marked.
@@ -97,6 +105,8 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 tests = test [
 		"extractVars1" ~: ["X", "Y", "Z"] ~=? extractVars (Imply (Relation "w" ["X"]) (And (Relation "bla" ["X", "Y"]) (Relation "bly" ["Z", "X"])))
 
+		,"createVarMap1" ~: M.fromList [("X", ["bob", "steve"]), ("Y", ["pete"])] ~=? createVarMap _testVarMap
+
 		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap ((_ce . compileClause) $ Relation "work" ["bob"])
 		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (addClause _tdb1 $ compileClause $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
 		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (addClause _tdb2 $ compileClause $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
@@ -105,7 +115,7 @@ tests = test [
 _ce = addClause (Database M.empty)
 _tdb1 = fromJust $ compile' "$name bob;$name steve;$eat bob bacon;"
 _tdb2 = fromJust $ compile' "$love romeo julia;$love julia romeo;$love peter julia;"
-
+_testVarMap = [[("X", "bob"), ("Y", "pete")], [("X", "steve")]]
 
 -- For debugging
 debug :: IO Database

@@ -15,6 +15,8 @@ import Test.HUnit
 import AL.Core
 import AL.Parse hiding (tests)
 
+import Prelude hiding (Either(..))
+
 -- |The database class stores all the information needed
 -- to fetch a query.
 data Database = Database {
@@ -22,6 +24,8 @@ data Database = Database {
 					}
 
 type Variables = M.Map String [String]
+
+data Cmp = Left | Right | Both
 
 data Clause = Clause {
 		baseRule :: Rule, 
@@ -32,12 +36,53 @@ data Clause = Clause {
 -- |The compiler function takes a string and converts
 -- it into a AL database if the parse is successfull else Nothing.
 compile' :: String -> Maybe Database
-compile' = liftM (foldl' addClause emptyDB) . liftM (map compileClause) . liftM catMaybes . parseAL
+compile' = liftM (foldl' addClause db) . liftM (map $ compileClause db) . liftM catMaybes . parseAL
+	where
+		db = emptyDB
+
+
+-- |Adds a clause to a database.
+addClause :: Database -> Clause -> Database
+addClause = undefined
 
 
 -- |Takes a base rule and creates a clause from it.
-compileClause :: Rule -> Clause
-compileClause r = undefined
+compileClause :: Database -> Rule -> Clause
+compileClause db = saturateCandidates db . (flip Clause) M.empty
+
+
+createSets :: Database -> Clause -> [Maybe [String]]
+createSets db c = map (ruleCmp $ baseRule c) options 
+	where
+		options :: [[(String, String)]]
+		options = undefined -- TODO: Add combinator. 
+
+
+ruleCmp :: Rule -> [(String, String)] -> Maybe [String]
+ruleCmp (Relation name vars) vlist = Just $ catMaybes $ map (satRelVar vlist) vars
+ruleCmp (And r1 r2) vlist = (boolToMby . (==2) . length . catMaybes . map (applyCmp vlist) ) [r1, r2]
+ruleCmp (Or r1 r2) vlist = (boolToMby . not . null . catMaybes . map (applyCmp vlist) ) [r1, r2]
+ruleCmp (AndNot r1 r2) vlist = (boolToMby . validAndNot . map (applyCmp vlist) ) [r1, r2] 
+ruleCmp (Imply r1 r2) vlist = if isJust $ applyCmp vlist r2 then ruleCmp r1 vlist else Nothing
+ruleCmp  _ vlist = Nothing
+
+
+satRelVar vlist x = if isUpper $ head x 
+						then lookup x vlist 
+						else Just x
+
+
+applyCmp :: [(String, String)] -> Rule -> Maybe [String]
+applyCmp vlist = (flip ruleCmp $ vlist)
+
+
+validAndNot :: [Maybe [a]] -> Bool
+validAndNot [Just _, Nothing] = True
+validAndNot _ = False
+
+
+boolToMby :: Bool -> Maybe [String]
+boolToMby x = if x then Just [] else Nothing
 
 
 -- |Transform a clause, saturationg all the variable combinations.
@@ -55,18 +100,14 @@ extractVars :: Rule -> [String]
 extractVars = extractRule $ filter (isUpper. head) . snd
 
 
--- |Higher-order function that takes a rule and draws all the data from it.
+-- |Higher-order function that takes a rule and draws all the data from it using
+-- the passed funtion.
 extractRule :: Eq a => ((String, [String]) -> [a]) -> Rule -> [a]
 extractRule f (Relation name vars) = f (name, vars)
 extractRule f (AndNot r1 r2) = extractRule f r1 `union` extractRule f r2
 extractRule f (And r1 r2) = extractRule f r1 `union` extractRule f r2
 extractRule f (Imply r1 r2) = extractRule f r1 `union` extractRule f r2
 extractRule f _ = []
-
-
--- |Adds a clause to a database.
-addClause :: Database -> Clause -> Database
-addClause = undefined
 
 
 emptyDB :: Database
@@ -82,7 +123,7 @@ createVarMap = foldl' go M.empty
 
 -- |Extends the root wrapper giving back the information with variables marked.
 getEntriesMarked :: Database -> [String] -> String -> [[(String, String)]]
-getEntriesMarked db@(Database m) vars query = evalVariables vars $ getEntries db query
+getEntriesMarked db@(Database m) vars = evalVariables vars . getEntries db
 
 
 -- |Root wrapper for getting database information.
@@ -107,10 +148,16 @@ tests = test [
 
 		,"createVarMap1" ~: M.fromList [("X", ["bob", "steve"]), ("Y", ["pete"])] ~=? createVarMap _testVarMap
 
-		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap ((_ce . compileClause) $ Relation "work" ["bob"])
-		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (addClause _tdb1 $ compileClause $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
-		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (addClause _tdb2 $ compileClause $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
+		,"ruleCmp1" ~: Just ["bob", "peter"] ~=? ruleCmp _testRule1 [("X", "bob"), ("Y", "peter"), ("Z", "sello")]
+		,"ruleCmp2" ~: Just ["cat", "fish"] ~=? ruleCmp _testRule2 [("X", "cat"), ("Y", "fish"), ("Z", "dog")]           
+
+		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap ((_ce . compileClause emptyDB) $ Relation "work" ["bob"])
+		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (addClause _tdb1 $ compileClause _tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
+		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (addClause _tdb2 $ compileClause _tdb2 $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
 	]
+
+_testRule2 = (Imply (Relation "eat" ["X", "Y"]) (And (Relation "food" ["X"]) (Relation "hunter" ["Y"]) ) )
+_testRule1 = (Relation "work" ["X", "Y"])
 
 _ce = addClause (Database M.empty)
 _tdb1 = fromJust $ compile' "$name bob;$name steve;$eat bob bacon;"

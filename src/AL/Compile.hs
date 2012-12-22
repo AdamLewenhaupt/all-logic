@@ -110,7 +110,9 @@ saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (\x 
 		base = baseRule clause
 		varMap = variableMap clause
 		varSet = extractVars $ base
-		go acc (name, vars) = M.union acc $ createVarMap $ getEntriesMarked db vars name
+		go acc (name, vars) = M.union acc $ createVarMap $ case getEntriesMarked db vars name of
+			Just x -> x
+			Nothing -> []
 
 
 -- |Analyzes a rule, finding all dynamic variables.
@@ -140,13 +142,13 @@ createVarMap = foldl' go M.empty
 
 
 -- |Extends the root wrapper giving back the information with variables marked.
-getEntriesMarked :: Database -> [String] -> String -> [[(String, String)]]
-getEntriesMarked db@(Database m) vars = evalVariables vars . getEntries db
+getEntriesMarked :: Database -> [String] -> String -> Maybe [[(String, String)]]
+getEntriesMarked db@(Database m) vars = fmap (evalVariables vars) . getEntries db
 
 
 -- |Root wrapper for getting database information.
-getEntries :: Database -> String -> [[String]]
-getEntries db@(Database m) query = dmap db M.! query
+getEntries :: Database -> String -> Maybe [[String]]
+getEntries db@(Database m) query = M.lookup query $ dmap db
 
 
 -- This function provides the desired variable combinations.

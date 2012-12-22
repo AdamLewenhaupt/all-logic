@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module AL.Compile (
 		Database(..)
 		, compile'
@@ -31,6 +33,7 @@ data Clause = Clause {
 		baseRule :: Rule, 
 		variableMap :: Variables
 	}
+	deriving(Show)
 
 
 -- |The compiler function takes a string and converts
@@ -43,8 +46,9 @@ compile' = liftM (foldl' addClause db) . liftM (map $ compileClause db) . liftM 
 
 -- |Adds a clause to a database.
 addClause :: Database -> Clause -> Database
-addClause = undefined
-
+addClause db c = Database $ case baseRule c of
+	(Relation name vars) -> M.insertWith union name (catMaybes $ createSets db c) (dmap db)
+	(Imply (Relation name _) r2) -> M.insertWith union name (catMaybes $ createSets db $ compileClause db r2) (dmap db)
 
 -- |Takes a base rule and creates a clause from it.
 compileClause :: Database -> Rule -> Clause
@@ -55,9 +59,19 @@ createSets :: Database -> Clause -> [Maybe [String]]
 createSets db c = map (ruleCmp $ baseRule c) options 
 	where
 		options :: [[(String, String)]]
-		options = undefined -- TODO: Add combinator. 
+		options = createCombinations $ M.toList $ variableMap c
 
 
+createCombinations :: [(String, [String])] -> [[(String, String)]]
+createCombinations = (\(x:xs) -> go (map (\a -> [a]) x) xs) . map (\(a,b) -> map (a,) b)
+	where
+		go :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
+		go acc [] = acc
+		go acc (x:xs) = go (concat $ map (\a -> map (:a) x) acc) xs
+
+
+-- |Used to compare rules resulting in a maybe set of variables if
+-- the expression is valid.
 ruleCmp :: Rule -> [(String, String)] -> Maybe [String]
 ruleCmp (Relation name vars) vlist = Just $ catMaybes $ map (satRelVar vlist) vars
 ruleCmp (And r1 r2) vlist = (boolToMby . (==2) . length . catMaybes . map (applyCmp vlist) ) [r1, r2]
@@ -67,20 +81,24 @@ ruleCmp (Imply r1 r2) vlist = if isJust $ applyCmp vlist r2 then ruleCmp r1 vlis
 ruleCmp  _ vlist = Nothing
 
 
+-- |Saturate relation with variable
 satRelVar vlist x = if isUpper $ head x 
 						then lookup x vlist 
 						else Just x
 
 
+-- |Used for recursive comparing
 applyCmp :: [(String, String)] -> Rule -> Maybe [String]
 applyCmp vlist = (flip ruleCmp $ vlist)
 
 
+-- |Check out if a AndNot expression is valid.
 validAndNot :: [Maybe [a]] -> Bool
 validAndNot [Just _, Nothing] = True
 validAndNot _ = False
 
 
+-- |Takes a bool and converts it to an empty list if true else Nothing.
 boolToMby :: Bool -> Maybe [String]
 boolToMby x = if x then Just [] else Nothing
 
@@ -152,7 +170,7 @@ tests = test [
 		,"ruleCmp2" ~: Just ["cat", "fish"] ~=? ruleCmp _testRule2 [("X", "cat"), ("Y", "fish"), ("Z", "dog")]           
 
 		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap ((_ce . compileClause emptyDB) $ Relation "work" ["bob"])
-		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (addClause _tdb1 $ compileClause _tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
+		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (addClause _testDB2 $ compileClause _tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
 		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (addClause _tdb2 $ compileClause _tdb2 $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
 	]
 
@@ -163,6 +181,8 @@ _ce = addClause (Database M.empty)
 _tdb1 = fromJust $ compile' "$name bob;$name steve;$eat bob bacon;"
 _tdb2 = fromJust $ compile' "$love romeo julia;$love julia romeo;$love peter julia;"
 _testVarMap = [[("X", "bob"), ("Y", "pete")], [("X", "steve")]]
+_testDB = M.fromList [("love", [["romeo", "julia"], ["julia romeo"], ["peter", "julia"]])]
+_testDB2 = Database $ M.fromList [("name", [["bob"], ["steve"]]), ("eat", [["bob", "bacon"]])]
 
 -- For debugging
 debug :: IO Database

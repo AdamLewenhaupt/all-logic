@@ -8,7 +8,7 @@ module AL.Compile (
 
 import Control.Monad (liftM)
 import Data.Maybe (catMaybes, isJust, fromJust)
-import Data.Char (isUpper)
+import Data.Char (isUpper, isLower)
 import qualified Data.Map as M
 import Data.List (foldl', union, (\\), intersect, nub)
 import Control.Applicative ((<*>), (<$>))
@@ -144,7 +144,10 @@ createVarMap = foldl' go M.empty
 
 -- |Extends the root wrapper giving back the information with variables marked.
 getEntriesMarked :: Database -> [String] -> String -> Maybe [[(String, String)]]
-getEntriesMarked db@(Database m) vars = fmap (evalVariables vars) . getEntries db
+getEntriesMarked db@(Database m) vars = go . fmap (evalVariables vars) . getEntries db
+		where 
+			go Nothing = staticVarEval vars
+			go x = x
 
 
 -- |Root wrapper for getting database information.
@@ -161,6 +164,13 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 		go (v:vs) (r:rs) = if isUpper (head v) then (v, r):go vs rs
 							else if v == r then ("_", r): go vs rs
 							else []
+
+
+
+staticVarEval :: [String] -> Maybe [[(String, String)]]
+staticVarEval xs | all (isLower . head) xs = Just $ [map ("_",) xs] 
+				 | otherwise = Nothing
+
 
 
 -- Testing

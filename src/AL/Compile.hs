@@ -63,7 +63,8 @@ createSets db c = map (ruleCmp $ baseRule c) options
 
 
 createCombinations :: [(String, [String])] -> [[(String, String)]]
-createCombinations = (\(x:xs) -> go (map (\a -> [a]) x) xs) . map (\(a,b) -> map (a,) b)
+createCombinations [] = []
+createCombinations xs = (\(x:xs) -> go (map (\a -> [a]) x) xs) . map (\(a,b) -> map (a,) b) $ xs
 	where
 		go :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
 		go acc [] = acc

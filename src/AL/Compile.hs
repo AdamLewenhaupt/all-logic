@@ -169,6 +169,10 @@ tests = test [
 
 		,"createVarMap1" ~: M.fromList [("X", ["bob", "steve"]), ("Y", ["pete"])] ~=? createVarMap _testVarMap
 
+		,"createCombinations" ~: [[("X", "bob")], [("X", "steve")]] ~=? createCombinations [("X", ["bob", "steve"])]
+		,"createSets" ~: [Just ["bob"], Just ["steve"]] ~=? createSets _testDB2 (compileClause _testDB2 $ Relation "name" ["X"])
+		,"createSets" ~: [Just ["bob", "bacon"]] ~=? createSets _testDB2 (compileClause _testDB2 $ Relation "eat" ["X", "Y"])
+
 		,"ruleCmp1" ~: Just ["bob", "peter"] ~=? ruleCmp _testRule1 [("X", "bob"), ("Y", "peter"), ("Z", "sello")]
 		,"ruleCmp2" ~: Just ["cat", "fish"] ~=? ruleCmp _testRule2 [("X", "cat"), ("Y", "fish"), ("Z", "dog")]           
 

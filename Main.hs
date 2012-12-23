@@ -7,4 +7,4 @@ main = do
 	d <- readFile "test.txt"
 	case compile d of
 		Nothing -> return ()
-		Just x -> print (query x "unhappy")
+		Just x -> print (query x "sten")

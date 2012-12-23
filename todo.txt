@@ -1,0 +1,2 @@
+Or not working
+Duplets in multiple variables, need restriction so that for example X and Y can't have the same value at the same time.

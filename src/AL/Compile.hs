@@ -124,7 +124,7 @@ saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (\x 
 	where
 		base = baseRule clause
 		varMap = variableMap clause
-		go acc (name, vars) = M.union acc $ createVarMap $ getEntriesMarked db vars name
+		go acc (name, vars) = M.unionWith union acc $ createVarMap $ getEntriesMarked db vars name
 
 
 -- |Analyzes a rule, finding all dynamic variables.
@@ -136,6 +136,7 @@ extractVars = extractRule $ filter (isUpper. head) . snd
 -- the passed funtion.
 extractRule :: Eq a => ((String, [String]) -> [a]) -> Rule -> [a]
 extractRule f (Relation name vars) = f (name, vars)
+extractRule f (Or r1 r2) = extractRule f r1 `union` extractRule f r2
 extractRule f (AndNot r1 r2) = extractRule f r1 `union` extractRule f r2
 extractRule f (And r1 r2) = extractRule f r1 `union` extractRule f r2
 extractRule f (Imply r1 r2) = extractRule f r1 `union` extractRule f r2

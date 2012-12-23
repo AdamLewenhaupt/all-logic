@@ -67,7 +67,7 @@ createSets :: Database -> Clause -> [Maybe [String]]
 createSets db c = map (ruleCmp db $ baseRule c) options 
 	where
 		options :: [[(String, String)]]
-		options = createCombinations $ M.toList $ variableMap c
+		options = filter (\x -> (length . nub . map snd) x == length x) $ createCombinations $ M.toList $ variableMap c
 
 
 createCombinations :: [(String, [String])] -> [[(String, String)]]

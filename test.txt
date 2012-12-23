@@ -6,5 +6,4 @@ $eat peter;
 
 $happy X <- $love X Y & $love Y X;
 $unhappy X <- $love X Y &! $love Y X;
-
 $jealous X Z <- ($love X Y & $love Z Y) & $love Y Z; 

@@ -10,7 +10,8 @@ import Control.Monad (liftM)
 import Data.Maybe (catMaybes, isJust, fromJust)
 import Data.Char (isUpper, isLower)
 import qualified Data.Map as M
-import Data.List (foldl', union, (\\), intersect, nub)
+import Data.List (foldl', union, (\\), intersect, nub, find)
+import Data.Foldable (foldr')
 import Control.Applicative ((<*>), (<$>))
 import Test.HUnit
 
@@ -23,7 +24,7 @@ import Prelude hiding (Either(..))
 -- to fetch a query.
 data Database = Database {
 						dmap :: M.Map String [[String]]
-					}
+					} deriving (Show)
 
 type Variables = M.Map String [String]
 
@@ -36,19 +37,26 @@ data Clause = Clause {
 	deriving(Show)
 
 
+cond :: (a -> Bool) -> b -> (a -> b) -> a -> b
+cond c b f x = if c x then f x else b
+
+
 -- |The compiler function takes a string and converts
 -- it into a AL database if the parse is successfull else Nothing.
 compile' :: String -> Maybe Database
-compile' = liftM (foldl' addClause db) . liftM (map $ compileClause db) . liftM catMaybes . parseAL
+compile' = liftM (foldl' go defDB) . liftM catMaybes . parseAL
 	where
-		db = emptyDB
+		defDB = emptyDB
+		go db r = addClause db $ compileClause db r
 
 
 -- |Adds a clause to a database.
 addClause :: Database -> Clause -> Database
-addClause db c = Database $ case baseRule c of
-	(Relation name vars) -> M.insertWith union name (catMaybes $ createSets db c) (dmap db)
-	(Imply (Relation name _) r2) -> M.insertWith union name (catMaybes $ createSets db $ compileClause db r2) (dmap db)
+addClause db c = case baseRule c of
+	(Relation name _) -> go name
+	(Imply (Relation name _) r2) -> go name
+	where go name = Database $ M.insertWith union name (nub $ catMaybes $ createSets db c) (dmap db)
+
 
 -- |Takes a base rule and creates a clause from it.
 compileClause :: Database -> Rule -> Clause
@@ -56,7 +64,7 @@ compileClause db = saturateCandidates db . (flip Clause) M.empty
 
 
 createSets :: Database -> Clause -> [Maybe [String]]
-createSets db c = map (ruleCmp $ baseRule c) options 
+createSets db c = map (ruleCmp db $ baseRule c) options 
 	where
 		options :: [[(String, String)]]
 		options = createCombinations $ M.toList $ variableMap c
@@ -73,13 +81,19 @@ createCombinations xs = (\(x:xs) -> go (map (\a -> [a]) x) xs) . map (\(a,b) -> 
 
 -- |Used to compare rules resulting in a maybe set of variables if
 -- the expression is valid.
-ruleCmp :: Rule -> [(String, String)] -> Maybe [String]
-ruleCmp (Relation name vars) vlist = Just $ catMaybes $ map (satRelVar vlist) vars
-ruleCmp (And r1 r2) vlist = (boolToMby . (==2) . length . catMaybes . map (applyCmp vlist) ) [r1, r2]
-ruleCmp (Or r1 r2) vlist = (boolToMby . not . null . catMaybes . map (applyCmp vlist) ) [r1, r2]
-ruleCmp (AndNot r1 r2) vlist = (boolToMby . validAndNot . map (applyCmp vlist) ) [r1, r2] 
-ruleCmp (Imply r1 r2) vlist = if isJust $ applyCmp vlist r2 then ruleCmp r1 vlist else Nothing
-ruleCmp  _ vlist = Nothing
+ruleCmp :: Database -> Rule -> [(String, String)] -> Maybe [String]
+ruleCmp db (Relation name vars) vlist = (\x -> cond (const (any ((/="_") . fst) vlist)) (Just x) (assertExist db name) x) $ catMaybes $ map (satRelVar vlist) vars
+ruleCmp db (And r1 r2) vlist = (boolToMby . (==2) . length . catMaybes . map (applyCmp db vlist) ) [r1, r2]
+ruleCmp db (Or r1 r2) vlist = (boolToMby . not . null . catMaybes . map (applyCmp db vlist) ) [r1, r2]
+ruleCmp db (AndNot r1 r2) vlist = (boolToMby . validAndNot . map (applyCmp db vlist) ) [r1, r2] 
+ruleCmp db (Imply (Relation _ vars) r2) vlist = if isJust $ applyCmp db vlist r2 then Just $ catMaybes $ map (satRelVar vlist) vars else Nothing
+ruleCmp db  _ vlist = Nothing
+
+
+assertExist :: Database -> String -> [String] -> Maybe [String]
+assertExist (Database dm) name vars = case find (vars==) <$> M.lookup name dm of
+					Just x -> x
+					Nothing -> Nothing
 
 
 -- |Saturate relation with variable
@@ -89,8 +103,8 @@ satRelVar vlist x = if isUpper $ head x
 
 
 -- |Used for recursive comparing
-applyCmp :: [(String, String)] -> Rule -> Maybe [String]
-applyCmp vlist = (flip ruleCmp $ vlist)
+applyCmp :: Database -> [(String, String)] -> Rule -> Maybe [String]
+applyCmp db vlist = (flip (ruleCmp db) $ vlist)
 
 
 -- |Check out if a AndNot expression is valid.
@@ -110,10 +124,7 @@ saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (\x 
 	where
 		base = baseRule clause
 		varMap = variableMap clause
-		varSet = extractVars $ base
-		go acc (name, vars) = M.union acc $ createVarMap $ case getEntriesMarked db vars name of
-			Just x -> x
-			Nothing -> []
+		go acc (name, vars) = M.union acc $ createVarMap $ getEntriesMarked db vars name
 
 
 -- |Analyzes a rule, finding all dynamic variables.
@@ -138,26 +149,27 @@ emptyDB = Database M.empty
 createVarMap :: [[(String, String)]] -> Variables
 createVarMap = foldl' go M.empty
 	where
-		go acc = M.unionWith (++) acc . foldl' go' M.empty
+		go acc = M.unionWith union acc . foldl' go' M.empty
 		go' acc (name,val) = M.insertWith union name [val] acc
 
 
 -- |Extends the root wrapper giving back the information with variables marked.
-getEntriesMarked :: Database -> [String] -> String -> Maybe [[(String, String)]]
-getEntriesMarked db@(Database m) vars = go . fmap (evalVariables vars) . getEntries db
-		where 
-			go Nothing = staticVarEval vars
-			go x = x
+getEntriesMarked :: Database -> [String] -> String -> [[(String, String)]]
+getEntriesMarked db@(Database m) vars = evalVariables vars . getEntries db
 
 
 -- |Root wrapper for getting database information.
-getEntries :: Database -> String -> Maybe [[String]]
-getEntries db@(Database m) query = M.lookup query $ dmap db
+getEntries :: Database -> String -> [[String]]
+getEntries db@(Database m) query = case M.lookup query $ dmap db of
+	Just x -> x
+	Nothing -> []
 
 
 -- This function provides the desired variable combinations.
 evalVariables :: [String] -> [[String]] -> [[(String, String)]]
-evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
+evalVariables vars rs
+		| all (isLower . head) vars = staticVarEval vars
+		| otherwise  = filter ((==length (head rs)).length) $ map (go vars) rs
 	where
 		go _ [] = []
 		go [] (r:rs) = ("_", r):go [] rs
@@ -167,9 +179,8 @@ evalVariables vars rs = filter ((==length (head rs)).length) $ map (go vars) rs
 
 
 
-staticVarEval :: [String] -> Maybe [[(String, String)]]
-staticVarEval xs | all (isLower . head) xs = Just $ [map ("_",) xs] 
-				 | otherwise = Nothing
+staticVarEval :: [String] -> [[(String, String)]]
+staticVarEval xs = [map ("_",) xs]
 
 
 
@@ -183,9 +194,6 @@ tests = test [
 		,"createSets" ~: [Just ["bob"], Just ["steve"]] ~=? createSets _testDB2 (compileClause _testDB2 $ Relation "name" ["X"])
 		,"createSets" ~: [Just ["bob", "bacon"]] ~=? createSets _testDB2 (compileClause _testDB2 $ Relation "eat" ["X", "Y"])
 
-		,"ruleCmp1" ~: Just ["bob", "peter"] ~=? ruleCmp _testRule1 [("X", "bob"), ("Y", "peter"), ("Z", "sello")]
-		,"ruleCmp2" ~: Just ["cat", "fish"] ~=? ruleCmp _testRule2 [("X", "cat"), ("Y", "fish"), ("Z", "dog")]           
-
 		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap ((_ce . compileClause emptyDB) $ Relation "work" ["bob"])
 		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (addClause _testDB2 $ compileClause _tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
 		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (addClause _tdb2 $ compileClause _tdb2 $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
@@ -198,7 +206,7 @@ _ce = addClause (Database M.empty)
 _tdb1 = fromJust $ compile' "$name bob;$name steve;$eat bob bacon;"
 _tdb2 = fromJust $ compile' "$love romeo julia;$love julia romeo;$love peter julia;"
 _testVarMap = [[("X", "bob"), ("Y", "pete")], [("X", "steve")]]
-_testDB = M.fromList [("love", [["romeo", "julia"], ["julia romeo"], ["peter", "julia"]])]
+_testDB = M.fromList [("love", [["romeo", "julia"], ["julia", "romeo"], ["peter", "julia"]])]
 _testDB2 = Database $ M.fromList [("name", [["bob"], ["steve"]]), ("eat", [["bob", "bacon"]])]
 
 -- For debugging

@@ -13,6 +13,7 @@ import qualified Data.Map as M
 import Data.List (foldl', union, (\\), intersect, nub, find)
 import Data.Foldable (foldr')
 import Control.Applicative ((<*>), (<$>))
+import qualified Data.Vector as V
 import Test.HUnit
 
 import AL.Core
@@ -20,13 +21,16 @@ import AL.Parse hiding (tests)
 
 import Prelude hiding (Either(..))
 
+type Vector a = V.Vector a
+type Vector2 a = Vector (Vector a)
+
 -- |The database class stores all the information needed
 -- to fetch a query.
 data Database = Database {
-						dmap :: M.Map String [[String]]
+						dmap :: M.Map String (Vector2 String)
 					} deriving (Show)
 
-type Variables = M.Map String [String]
+type Variables = M.Map String (Vector String)
 
 data Cmp = Left | Right | Both
 
@@ -60,57 +64,62 @@ compileClause db = saturateCandidates db . (flip Clause) M.empty
 
 
 createSets :: Database -> Clause -> [Maybe [String]]
-createSets db c = map (ruleCmp db $ baseRule c) options 
+createSets db c = V.map (ruleCmp db $ baseRule c) options 
 	where
-		options :: [[(String, String)]]
+		options :: Vector2 (String, String)
 		options = filter (\x -> (length . nub . map snd) x == length x) $ createCombinations $ M.toList $ variableMap c
 
 
-createCombinations :: [(String, [String])] -> [[(String, String)]]
-createCombinations [] = []
-createCombinations xs = (\(x:xs) -> go (map (\a -> [a]) x) xs) . map (\(a,b) -> map (a,) b) $ xs
+createCombinations :: [(String, Vector String)] -> Vector2 String
+createCombinations [] = V.empty
+createCombinations xs = (\(x:xs) -> go (V.map V.singleton x) xs) . V.fromList . (\(a,b) -> V.map (a,) b) $ xs
 	where
-		go :: [[(String, String)]] -> [[(String, String)]] -> [[(String, String)]]
-		go acc [] = acc
-		go acc (x:xs) = go (concat $ map (\a -> map (:a) x) acc) xs
+		go :: Vector2 String -> Vector2 String -> Vector2 String
+		go acc vs = if V.null vs 
+						then V.empty 
+						else 
+							let 
+								(v1,v2) = V.splitAt 1 vs
+								v = V.head v1
+							in go (V.concat $ V.map (\a -> V.map (`V.cons`a) v) acc) v2
 
 
 -- |Used to compare rules resulting in a maybe set of variables if
 -- the expression is valid.
-ruleCmp :: Database -> Rule -> [(String, String)] -> Maybe [String]
-ruleCmp db (Relation name vars) vlist = relationCmp db vlist name $ catMaybes $ map (satRelVar vlist) vars 
-ruleCmp db (And r1 r2) vlist = (boolToMby . (==2) . length . catMaybes . map (applyCmp db vlist) ) [r1, r2]
-ruleCmp db (Or r1 r2) vlist = (boolToMby . not . null . catMaybes . map (applyCmp db vlist) ) [r1, r2]
-ruleCmp db (AndNot r1 r2) vlist = (boolToMby . validAndNot . map (applyCmp db vlist) ) [r1, r2] 
-ruleCmp db (Imply (Relation _ vars) r2) vlist = if isJust $ applyCmp db vlist r2 then Just $ catMaybes $ map (satRelVar vlist) vars else Nothing
+ruleCmp :: Database -> Rule -> Vector (String, String) -> Maybe (Vector String)
+ruleCmp db (Relation name vars) vlist = relationCmp db vlist name $ vcatMaybes $ V.map (satRelVar vlist) $ V.fromList vars 
+ruleCmp db (And r1 r2) vlist = (liftM V.fromList . boolToMby . (==2) . length . catMaybes . map (applyCmp db vlist) ) [r1, r2]
+ruleCmp db (Or r1 r2) vlist = (liftM V.fromList . boolToMby . not . null . catMaybes . map (applyCmp db vlist) ) [r1, r2]
+ruleCmp db (AndNot r1 r2) vlist = (liftM V.fromList . boolToMby . validAndNot . map (applyCmp db vlist) ) [r1, r2] 
+ruleCmp db (Imply (Relation _ vars) r2) vlist = if isJust $ applyCmp db vlist r2 then Just . V.fromList $ catMaybes $ map (satRelVar vlist) vars else Nothing
 ruleCmp db  _ vlist = Nothing
 
 
-relationCmp :: Database -> [(String, String)] -> String -> [String] -> Maybe [String]
-relationCmp db vlist name x = if any ((/="_") . fst) vlist
+relationCmp :: Database -> Vector (String, String) -> String -> Vector String -> Maybe (Vector String)
+relationCmp db vlist name x = if V.any ((/="_") . fst) vlist
 							then assertExist db name x
 							else Just x
 
 
-assertExist :: Database -> String -> [String] -> Maybe [String]
-assertExist (Database dm) name vars = case find (vars==) <$> M.lookup name dm of
+assertExist :: Database -> String -> Vector String -> Maybe (Vector String)
+assertExist (Database dm) name vars = case V.find (vars==) <$> M.lookup name dm of
 					Just x -> x
 					Nothing -> Nothing
 
 
 -- |Saturate relation with variable
 satRelVar vlist x = if isUpper $ head x 
-						then lookup x vlist 
+						then vlookup x vlist 
 						else Just x
 
 
 -- |Used for recursive comparing
-applyCmp :: Database -> [(String, String)] -> Rule -> Maybe [String]
+applyCmp :: Database -> Vector (String, String) -> Rule -> Maybe (Vector String)
 applyCmp db vlist = (flip (ruleCmp db) $ vlist)
 
 
 -- |Check out if a AndNot expression is valid.
-validAndNot :: [Maybe [a]] -> Bool
+validAndNot :: [Maybe (Vector a)] -> Bool
 validAndNot [Just _, Nothing] = True
 validAndNot _ = False
 
@@ -126,7 +135,7 @@ saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (\x 
 	where
 		base = baseRule clause
 		varMap = variableMap clause
-		go acc (name, vars) = M.unionWith union acc $ createVarMap $ getEntriesMarked db vars name
+		go acc (name, vars) = M.unionWith vunion acc $ createVarMap $ getEntriesMarked db vars name
 
 
 -- |Analyzes a rule, finding all dynamic variables.
@@ -149,41 +158,68 @@ emptyDB :: Database
 emptyDB = Database M.empty
 
 
-createVarMap :: [[(String, String)]] -> Variables
-createVarMap = foldl' go M.empty
+createVarMap ::Vector2 (String, String) -> Variables
+createVarMap = V.foldl' go M.empty
 	where
-		go acc = M.unionWith union acc . foldl' go' M.empty
-		go' acc (name,val) = M.insertWith union name [val] acc
+		go acc = M.unionWith vunion acc . V.foldl' go' M.empty
+		go' acc (name,val) = M.insertWith vunion name (return val) acc
 
 
 -- |Extends the root wrapper giving back the information with variables marked.
-getEntriesMarked :: Database -> [String] -> String -> [[(String, String)]]
+getEntriesMarked :: Database -> [String] -> String -> Vector2 (String, String)
 getEntriesMarked db@(Database m) vars = evalVariables vars . getEntries db
 
 
 -- |Root wrapper for getting database information.
-getEntries :: Database -> String -> [[String]]
+getEntries :: Database -> String -> Vector2 String
 getEntries db@(Database m) query = case M.lookup query $ dmap db of
 	Just x -> x
-	Nothing -> []
+	Nothing -> V.empty
 
 
 -- This function provides the desired variable combinations.
-evalVariables :: [String] -> [[String]] -> [[(String, String)]]
+evalVariables :: [String] -> Vector2 String -> Vector2 (String, String)
 evalVariables vars rs
 		| all (isLower . head) vars = staticVarEval vars
-		| otherwise  = filter ((==length (head rs)).length) $ map (go vars) rs
+		| otherwise  = V.filter ((== V.length (V.head rs)). V.length) $ V.map (go $ V.fromList vars) rs
 	where
-		go _ [] = []
-		go [] (r:rs) = ("_", r):go [] rs
-		go (v:vs) (r:rs) = if isUpper (head v) then (v, r):go vs rs
-							else if v == r then ("_", r): go vs rs
-							else []
+		go vs rs = if V.null vs 
+						then V.empty 
+						else if V.null rs
+							then let (v1, v2) = V.splitAt 1 vs 
+								in ("_", V.head v1) `V.cons` go V.empty v2
+							else let 
+									(v1, v2) = V.splitAt 1 vs
+									(r1, r2) = V.splitAt 1 rs 
+									v = V.head v1
+									r = V.head r1
+								in if isUpper (head v) 
+							 		then (v, r) `V.cons` go v2 r2
+							 		else if v == r then ("_", r) `V.cons` go v2 r2
+							 		else V.empty
 
 
+staticVarEval :: [String] -> Vector2 (String, String)
+staticVarEval = return . V.map ("_",) . V.fromList
 
-staticVarEval :: [String] -> [[(String, String)]]
-staticVarEval xs = [map ("_",) xs]
+
+vcatMaybes :: Vector (Maybe a) -> Vector a
+vcatMaybes = V.filter isJust
+
+
+vunion :: Vector a -> Vector a -> Vector a
+vunion v1 v2 = (v2 V.++) $ V.filter (`V.notElem`v2) v1
+
+
+vlookup :: Ord a => a -> Vector (a, b) -> Maybe b
+vlookup query xs = if V.null xs 
+						then Nothing 
+						else 
+							let (x1, x2) = V.splitAt 1 xs
+							    (n,v) = V.head x1
+							in if n == query
+								then Just v
+								else vlookup query x2
 
 
 

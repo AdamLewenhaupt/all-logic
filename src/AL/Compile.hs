@@ -37,10 +37,6 @@ data Clause = Clause {
 	deriving(Show)
 
 
-cond :: (a -> Bool) -> b -> (a -> b) -> a -> b
-cond c b f x = if c x then f x else b
-
-
 -- |The compiler function takes a string and converts
 -- it into a AL database if the parse is successfull else Nothing.
 compile' :: String -> Maybe Database
@@ -82,12 +78,18 @@ createCombinations xs = (\(x:xs) -> go (map (\a -> [a]) x) xs) . map (\(a,b) -> 
 -- |Used to compare rules resulting in a maybe set of variables if
 -- the expression is valid.
 ruleCmp :: Database -> Rule -> [(String, String)] -> Maybe [String]
-ruleCmp db (Relation name vars) vlist = (\x -> cond (const (any ((/="_") . fst) vlist)) (Just x) (assertExist db name) x) $ catMaybes $ map (satRelVar vlist) vars
+ruleCmp db (Relation name vars) vlist = relationCmp db vlist name $ catMaybes $ map (satRelVar vlist) vars 
 ruleCmp db (And r1 r2) vlist = (boolToMby . (==2) . length . catMaybes . map (applyCmp db vlist) ) [r1, r2]
 ruleCmp db (Or r1 r2) vlist = (boolToMby . not . null . catMaybes . map (applyCmp db vlist) ) [r1, r2]
 ruleCmp db (AndNot r1 r2) vlist = (boolToMby . validAndNot . map (applyCmp db vlist) ) [r1, r2] 
 ruleCmp db (Imply (Relation _ vars) r2) vlist = if isJust $ applyCmp db vlist r2 then Just $ catMaybes $ map (satRelVar vlist) vars else Nothing
 ruleCmp db  _ vlist = Nothing
+
+
+relationCmp :: Database -> [(String, String)] -> String -> [String] -> Maybe [String]
+relationCmp db vlist name x = if any ((/="_") . fst) vlist
+							then assertExist db name x
+							else Just x
 
 
 assertExist :: Database -> String -> [String] -> Maybe [String]

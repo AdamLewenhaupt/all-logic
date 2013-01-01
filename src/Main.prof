@@ -1,116 +1,166 @@
-	Mon Dec 31 14:42 2012 Time and Allocation Profiling Report  (Final)
+	Tue Jan  1 16:47 2013 Time and Allocation Profiling Report  (Final)
 
 	   Main +RTS -px -RTS
 
-	total time  =        0.00 secs   (3 ticks @ 1000 us, 1 processor)
-	total alloc =     776,240 bytes  (excludes profiling overheads)
+	total time  =        0.01 secs   (5 ticks @ 1000 us, 1 processor)
+	total alloc =   1,289,064 bytes  (excludes profiling overheads)
 
 COST CENTRE             MODULE           %time %alloc
 
-pVar                    AL.Parse          33.3   18.9
-createSets.options.\    AL.Compile        33.3    9.2
-relationCmp             AL.Compile        33.3    0.0
-CAF                     GHC.IO.Handle.FD   0.0    4.5
-rules                   AL.Parse           0.0    2.1
-var                     AL.Parse           0.0    1.7
-symbols                 AL.Parse           0.0    8.8
-spaces                  AL.Parse           0.0    9.9
-para                    AL.Parse           0.0    2.4
-createSets              AL.Compile         0.0    1.4
-createCombinations.go   AL.Compile         0.0    1.7
-createCombinations.go.\ AL.Compile         0.0    2.5
-ruleCmp                 AL.Compile         0.0   11.3
-applyCmp                AL.Compile         0.0    1.1
-assertExist             AL.Compile         0.0    1.3
-saturateCandidates.go   AL.Compile         0.0    1.3
-createVarMap.go         AL.Compile         0.0    3.4
-createVarMap.go'        AL.Compile         0.0    1.1
-main                    Main               0.0   10.2
+spaces                  AL.Parse          20.0    6.0
+createSets.options      AL.Compile        20.0    0.2
+assertExist             AL.Compile        20.0    3.6
+evalVariables.go        AL.Compile        20.0    1.4
+vlookup.(...)           AL.Compile        20.0   10.3
+CAF                     GHC.IO.Handle.FD   0.0    2.7
+rules                   AL.Parse           0.0    1.3
+var                     AL.Parse           0.0    1.0
+pVar                    AL.Parse           0.0   11.4
+symbols                 AL.Parse           0.0    5.3
+para                    AL.Parse           0.0    1.4
+createSets.options.\    AL.Compile         0.0    2.9
+createCombinations.go.\ AL.Compile         0.0    3.4
+ruleCmp                 AL.Compile         0.0    9.6
+vnub.go                 AL.Compile         0.0   12.7
+vpatt                   AL.Compile         0.0    6.3
+vcatMaybes              AL.Compile         0.0    3.0
+vunion                  AL.Compile         0.0    1.6
+vlookup                 AL.Compile         0.0    1.3
+main                    Main               0.0    6.1
 
 
-                                                                             individual     inherited
-COST CENTRE                        MODULE                  no.     entries  %time %alloc   %time %alloc
+                                                                                    individual     inherited
+COST CENTRE                               MODULE                  no.     entries  %time %alloc   %time %alloc
 
-MAIN                               MAIN                     80           0    0.0    0.1   100.0  100.0
- main                              Main                    161           0    0.0   10.1   100.0   94.2
-  main.\                           Main                    188           3    0.0    0.7     0.0    0.7
-   query                           AL                      189           3    0.0    0.0     0.0    0.0
-  compile'                         AL.Compile              164           0    0.0    0.1   100.0   83.4
-   compile'.go                     AL.Compile              192           8    0.0    0.2    66.7   39.3
-    addClause.go                   AL.Compile              197           8    0.0    0.0     0.0    0.0
-    addClause                      AL.Compile              195           8    0.0    0.0    66.7   31.7
-     addClause.go                  AL.Compile              201           0    0.0    0.5    66.7   31.7
-      createSets                   AL.Compile              204           7    0.0    1.4    66.7   31.1
-       ruleCmp                     AL.Compile              224         440    0.0   11.3    33.3   14.4
-        validAndNot                AL.Compile              232          20    0.0    0.0     0.0    0.0
-        boolToMby                  AL.Compile              231         136    0.0    0.0     0.0    0.0
-        applyCmp                   AL.Compile              229         224    0.0    1.1     0.0    1.1
-        satRelVar                  AL.Compile              227         401    0.0    0.8     0.0    0.8
-        relationCmp                AL.Compile              225         216   33.3    0.0    33.3    1.3
-         assertExist               AL.Compile              230         208    0.0    1.3     0.0    1.3
-       createSets.options          AL.Compile              205           7    0.0    0.8    33.3   15.3
-        createSets.options.\       AL.Compile              222         158   33.3    9.2    33.3    9.2
-        createCombinations         AL.Compile              218           7    0.0    0.1     0.0    5.3
-         createCombinations.\      AL.Compile              220          11    0.0    0.6     0.0    0.6
-         createCombinations.\      AL.Compile              219           7    0.0    0.3     0.0    4.6
-          createCombinations.\.\   AL.Compile              223          22    0.0    0.0     0.0    0.0
-          createCombinations.go    AL.Compile              221          11    0.0    1.7     0.0    4.2
-           createCombinations.go.\ AL.Compile              228          34    0.0    2.5     0.0    2.5
-    compileClause                  AL.Compile              193           8    0.0    0.0     0.0    7.4
-     saturateCandidates            AL.Compile              194           8    0.0    0.1     0.0    7.4
-      saturateCandidates.go        AL.Compile              209          14    0.0    1.3     0.0    6.9
-       getEntriesMarked            AL.Compile              212          14    0.0    0.1     0.0    1.1
-        getEntries                 AL.Compile              214          10    0.0    0.0     0.0    0.0
-        evalVariables              AL.Compile              213          14    0.0    0.2     0.0    0.9
-         evalVariables.go          AL.Compile              226          84    0.0    0.6     0.0    0.6
-         staticVarEval             AL.Compile              215           4    0.0    0.1     0.0    0.1
-       createVarMap                AL.Compile              211           0    0.0    0.0     0.0    4.5
-        createVarMap.go            AL.Compile              216          32    0.0    3.4     0.0    4.5
-         createVarMap.go'          AL.Compile              217          64    0.0    1.1     0.0    1.1
-      extractRule                  AL.Compile              207          21    0.0    0.5     0.0    0.5
-       saturateCandidates.\        AL.Compile              208          14    0.0    0.0     0.0    0.0
-      saturateCandidates.varMap    AL.Compile              206           7    0.0    0.0     0.0    0.0
-      saturateCandidates.base      AL.Compile              196           8    0.0    0.0     0.0    0.0
-   parseAL                         AL.Parse                165           1    0.0    0.1    33.3   44.1
-    constructData                  AL.Parse                190          24    0.0    0.0     0.0    0.2
-     compileOPs                    AL.Parse                198           7    0.0    0.1     0.0    0.1
-      makeRel                      AL.Parse                200           6    0.0    0.0     0.0    0.0
-     makeRel                       AL.Parse                191           9    0.0    0.0     0.0    0.0
-    rules                          AL.Parse                167           0    0.0    2.1    33.3   43.8
-     rule                          AL.Parse                169           0    0.0    0.2    33.3   41.7
-      var                          AL.Parse                171           0    0.0    1.7    33.3   41.5
-       pVar                        AL.Parse                175           0   33.3   18.9    33.3   37.9
-        para                       AL.Parse                181           0    0.0    0.2     0.0    0.4
-         symbols                   AL.Parse                185           0    0.0    0.0     0.0    0.1
-          spaces                   AL.Parse                186           0    0.0    0.1     0.0    0.1
-         spaces                    AL.Parse                183           0    0.0    0.1     0.0    0.1
-          symbols                  AL.Parse                184           0    0.0    0.0     0.0    0.0
-        symbols                    AL.Parse                177           0    0.0    8.7     0.0   18.7
-         spaces                    AL.Parse                180           0    0.0    9.8     0.0   10.0
-          para                     AL.Parse                182           0    0.0    0.2     0.0    0.2
-       para                        AL.Parse                173           0    0.0    1.9     0.0    1.9
- CAF                               Main                    159           0    0.0    0.0     0.0    0.3
-  main                             Main                    160           1    0.0    0.1     0.0    0.3
-   main.items                      Main                    187           1    0.0    0.2     0.0    0.2
- CAF                               AL                      158           0    0.0    0.0     0.0    0.0
-  compile                          AL                      162           1    0.0    0.0     0.0    0.0
- CAF                               AL.Compile              157           0    0.0    0.0     0.0    0.0
-  createVarMap                     AL.Compile              210           1    0.0    0.0     0.0    0.0
-  emptyDB                          AL.Compile              203           1    0.0    0.0     0.0    0.0
-  compile'                         AL.Compile              163           1    0.0    0.0     0.0    0.0
-   compile'.defDB                  AL.Compile              202           1    0.0    0.0     0.0    0.0
- CAF                               AL.Parse                155           0    0.0    0.1     0.0    0.4
-  ops                              AL.Parse                199           1    0.0    0.1     0.0    0.1
-  spaces                           AL.Parse                179           1    0.0    0.0     0.0    0.0
-  defaultSymbols                   AL.Parse                178           1    0.0    0.1     0.0    0.1
-  symbols                          AL.Parse                176           1    0.0    0.1     0.0    0.1
-  pVar                             AL.Parse                174           1    0.0    0.0     0.0    0.0
-  para                             AL.Parse                172           1    0.0    0.0     0.0    0.0
-  var                              AL.Parse                170           1    0.0    0.0     0.0    0.0
-  rule                             AL.Parse                168           1    0.0    0.0     0.0    0.0
-  rules                            AL.Parse                166           1    0.0    0.1     0.0    0.1
- CAF                               GHC.IO.Handle.FD        126           0    0.0    4.5     0.0    4.5
- CAF                               GHC.Conc.Signal         113           0    0.0    0.1     0.0    0.1
- CAF                               GHC.IO.Encoding         109           0    0.0    0.4     0.0    0.4
- CAF                               GHC.IO.FD               107           0    0.0    0.0     0.0    0.0
- CAF                               GHC.IO.Encoding.Iconv   104           0    0.0    0.0     0.0    0.0
+MAIN                                      MAIN                     93           0    0.0    0.1   100.0  100.0
+ main                                     Main                    187           0    0.0    6.1   100.0   96.5
+  main.\                                  Main                    214           3    0.0    0.5     0.0    0.6
+   query                                  AL                      227           3    0.0    0.1     0.0    0.1
+  compile'                                AL.Compile              190           0    0.0    0.1   100.0   89.8
+   compile'.go                            AL.Compile              218           8    0.0    0.0    80.0   63.2
+    addClause                             AL.Compile              221           8    0.0    0.0    60.0   56.3
+     addClause.go                         AL.Compile              223           8    0.0    0.1    60.0   56.2
+      vnub                                AL.Compile              272           7    0.0    0.0     0.0    0.5
+       vnub.go                            AL.Compile              274          20    0.0    0.3     0.0    0.5
+        vnub.go.v                         AL.Compile              279          13    0.0    0.0     0.0    0.0
+        vnub.go.vs                        AL.Compile              278          13    0.0    0.0     0.0    0.0
+        vnub.go.(...)                     AL.Compile              275          13    0.0    0.0     0.0    0.2
+         vpatt                            AL.Compile              276           0    0.0    0.2     0.0    0.2
+          vpatt.\                         AL.Compile              277          13    0.0    0.0     0.0    0.0
+      vunion                              AL.Compile              244           3    0.0    0.1     0.0    0.1
+      createSets                          AL.Compile              232           7    0.0    0.6    60.0   55.3
+       ruleCmp                            AL.Compile              270         440    0.0    9.6    40.0   28.4
+        validAndNot                       AL.Compile              305          20    0.0    0.0     0.0    0.0
+        boolToMby                         AL.Compile              296         136    0.0    0.0     0.0    0.0
+        applyCmp                          AL.Compile              295         224    0.0    0.6     0.0    0.6
+        satRelVar                         AL.Compile              281         438    0.0    0.0    20.0   11.6
+         vlookup                          AL.Compile              298         732    0.0    1.3    20.0   11.6
+          vlookup.v                       AL.Compile              304         385    0.0    0.0     0.0    0.0
+          vlookup.x2                      AL.Compile              303         310    0.0    0.0     0.0    0.0
+          vlookup.n                       AL.Compile              302         732    0.0    0.0     0.0    0.0
+          vlookup.(...)                   AL.Compile              301         732    0.0    0.0     0.0    0.0
+          vlookup.x1                      AL.Compile              300         732    0.0    0.0     0.0    0.0
+          vlookup.(...)                   AL.Compile              299         732   20.0   10.3    20.0   10.3
+        vcatMaybes                        AL.Compile              280           0    0.0    2.8     0.0    2.8
+        relationCmp                       AL.Compile              271         216    0.0    0.0    20.0    3.7
+         assertExist                      AL.Compile              297         208   20.0    3.6    20.0    3.6
+       createSets.options                 AL.Compile              234           7   20.0    0.2    20.0   26.3
+        vnub                              AL.Compile              255         158    0.0    0.0     0.0    0.0
+        createSets.options.\              AL.Compile              254         158    0.0    2.9     0.0   21.7
+         vnub                             AL.Compile              263           0    0.0    0.4     0.0   18.8
+          vnub.go                         AL.Compile              264         566    0.0   12.4     0.0   18.4
+           vnub.go.v                      AL.Compile              294         400    0.0    0.0     0.0    0.0
+           vnub.go.vs                     AL.Compile              269         408    0.0    0.0     0.0    0.0
+           vnub.go.(...)                  AL.Compile              265         408    0.0    0.0     0.0    6.1
+            vpatt                         AL.Compile              267           0    0.0    6.1     0.0    6.1
+             vpatt.\                      AL.Compile              268         408    0.0    0.0     0.0    0.0
+        createCombinations                AL.Compile              249           0    0.0    0.1     0.0    4.4
+         createCombinations.combinator    AL.Compile              252          11    0.0    0.2     0.0    0.2
+         createCombinations.initializator AL.Compile              250           7    0.0    0.3     0.0    4.0
+          createCombinations.go           AL.Compile              253          11    0.0    0.4     0.0    3.7
+           createCombinations.go.\        AL.Compile              292          34    0.0    3.4     0.0    3.4
+       createCombinations                 AL.Compile              233           7    0.0    0.0     0.0    0.0
+      vcatMaybes                          AL.Compile              231           0    0.0    0.1     0.0    0.1
+    compileClause                         AL.Compile              219           0    0.0    0.0    20.0    6.9
+     saturateCandidates                   AL.Compile              220           8    0.0    0.1    20.0    6.9
+      saturateCandidates.go               AL.Compile              238          14    0.0    0.2    20.0    6.6
+       vunion                             AL.Compile              293           7    0.0    0.2     0.0    0.2
+       getEntriesMarked                   AL.Compile              241          14    0.0    0.1    20.0    2.9
+        getEntries                        AL.Compile              243          10    0.0    0.0     0.0    0.0
+        evalVariables                     AL.Compile              242          14    0.0    0.3    20.0    2.9
+         evalVariables.go                 AL.Compile              282          84   20.0    1.4    20.0    2.4
+          evalVariables.go.r              AL.Compile              291          56    0.0    0.0     0.0    0.0
+          evalVariables.go.r1             AL.Compile              290          56    0.0    0.0     0.0    0.0
+          evalVariables.go.(...)          AL.Compile              288          56    0.0    0.8     0.0    0.8
+          evalVariables.go.r2             AL.Compile              287          28    0.0    0.0     0.0    0.0
+          evalVariables.go.v2             AL.Compile              286          56    0.0    0.0     0.0    0.0
+          evalVariables.go.(...)          AL.Compile              285          56    0.0    0.1     0.0    0.1
+          evalVariables.go.v1             AL.Compile              284          56    0.0    0.0     0.0    0.0
+          evalVariables.go.v              AL.Compile              283          56    0.0    0.0     0.0    0.0
+         staticVarEval                    AL.Compile              246           0    0.0    0.1     0.0    0.1
+       createVarMap                       AL.Compile              240           0    0.0    0.0     0.0    3.2
+        createVarMap.go                   AL.Compile              247          32    0.0    1.0     0.0    3.2
+         vunion                           AL.Compile              289          42    0.0    1.1     0.0    1.1
+         createVarMap.go'                 AL.Compile              248          64    0.0    1.0     0.0    1.1
+          vunion                          AL.Compile              251           4    0.0    0.1     0.0    0.1
+      extractRule                         AL.Compile              236          21    0.0    0.3     0.0    0.3
+       saturateCandidates.\               AL.Compile              237          14    0.0    0.0     0.0    0.0
+      saturateCandidates.varMap           AL.Compile              235           7    0.0    0.0     0.0    0.0
+      saturateCandidates.base             AL.Compile              222           8    0.0    0.0     0.0    0.0
+   compileClause                          AL.Compile              217           8    0.0    0.0     0.0    0.0
+   parseAL                                AL.Parse                191           1    0.0    0.1    20.0   26.5
+    constructData                         AL.Parse                215          24    0.0    0.0     0.0    0.1
+     compileOPs                           AL.Parse                224           7    0.0    0.1     0.0    0.1
+      makeRel                             AL.Parse                226           6    0.0    0.0     0.0    0.0
+     makeRel                              AL.Parse                216           9    0.0    0.0     0.0    0.0
+    rules                                 AL.Parse                193           0    0.0    1.3    20.0   26.4
+     rule                                 AL.Parse                195           0    0.0    0.1    20.0   25.1
+      var                                 AL.Parse                197           0    0.0    1.0    20.0   25.0
+       pVar                               AL.Parse                201           0    0.0   11.4    20.0   22.8
+        para                              AL.Parse                207           0    0.0    0.1     0.0    0.2
+         symbols                          AL.Parse                211           0    0.0    0.0     0.0    0.1
+          spaces                          AL.Parse                212           0    0.0    0.1     0.0    0.1
+         spaces                           AL.Parse                209           0    0.0    0.0     0.0    0.0
+          symbols                         AL.Parse                210           0    0.0    0.0     0.0    0.0
+        symbols                           AL.Parse                203           0    0.0    5.2    20.0   11.3
+         spaces                           AL.Parse                206           0   20.0    5.9    20.0    6.0
+          para                            AL.Parse                208           0    0.0    0.1     0.0    0.1
+       para                               AL.Parse                199           0    0.0    1.2     0.0    1.2
+ CAF                                      Main                    185           0    0.0    0.0     0.0    0.2
+  main                                    Main                    186           1    0.0    0.0     0.0    0.2
+   main.items                             Main                    213           1    0.0    0.1     0.0    0.1
+ CAF                                      AL                      184           0    0.0    0.0     0.0    0.0
+  compile                                 AL                      188           1    0.0    0.0     0.0    0.0
+ CAF                                      AL.Compile              183           0    0.0    0.0     0.0    0.0
+  vpatt                                   AL.Compile              266           1    0.0    0.0     0.0    0.0
+  compile'.go                             AL.Compile              256           0    0.0    0.0     0.0    0.0
+   addClause                              AL.Compile              257           0    0.0    0.0     0.0    0.0
+    addClause.go                          AL.Compile              258           0    0.0    0.0     0.0    0.0
+     vnub                                 AL.Compile              273           0    0.0    0.0     0.0    0.0
+     createSets                           AL.Compile              259           0    0.0    0.0     0.0    0.0
+      createSets.options                  AL.Compile              260           0    0.0    0.0     0.0    0.0
+       createSets.options.\               AL.Compile              261           0    0.0    0.0     0.0    0.0
+        vnub                              AL.Compile              262           0    0.0    0.0     0.0    0.0
+  staticVarEval                           AL.Compile              245           1    0.0    0.0     0.0    0.0
+  createVarMap                            AL.Compile              239           1    0.0    0.0     0.0    0.0
+  vcatMaybes                              AL.Compile              230           1    0.0    0.0     0.0    0.0
+  emptyDB                                 AL.Compile              229           1    0.0    0.0     0.0    0.0
+  compile'                                AL.Compile              189           1    0.0    0.0     0.0    0.0
+   compile'.defDB                         AL.Compile              228           1    0.0    0.0     0.0    0.0
+ CAF                                      AL.Parse                181           0    0.0    0.0     0.0    0.2
+  ops                                     AL.Parse                225           1    0.0    0.0     0.0    0.0
+  spaces                                  AL.Parse                205           1    0.0    0.0     0.0    0.0
+  defaultSymbols                          AL.Parse                204           1    0.0    0.0     0.0    0.0
+  symbols                                 AL.Parse                202           1    0.0    0.0     0.0    0.0
+  pVar                                    AL.Parse                200           1    0.0    0.0     0.0    0.0
+  para                                    AL.Parse                198           1    0.0    0.0     0.0    0.0
+  var                                     AL.Parse                196           1    0.0    0.0     0.0    0.0
+  rule                                    AL.Parse                194           1    0.0    0.0     0.0    0.0
+  rules                                   AL.Parse                192           1    0.0    0.0     0.0    0.0
+ CAF                                      Data.Vector             178           0    0.0    0.0     0.0    0.0
+ CAF                                      GHC.IO.Handle.FD        138           0    0.0    2.7     0.0    2.7
+ CAF                                      GHC.Show                136           0    0.0    0.0     0.0    0.0
+ CAF                                      GHC.Conc.Signal         126           0    0.0    0.1     0.0    0.1
+ CAF                                      GHC.IO.Encoding         122           0    0.0    0.3     0.0    0.3
+ CAF                                      GHC.IO.FD               120           0    0.0    0.0     0.0    0.0
+ CAF                                      GHC.IO.Encoding.Iconv   117           0    0.0    0.0     0.0    0.0

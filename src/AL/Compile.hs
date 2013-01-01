@@ -63,26 +63,27 @@ compileClause :: Database -> Rule -> Clause
 compileClause db = saturateCandidates db . (flip Clause) M.empty
 
 
+-- | The createSets function uses the information that is gathered by
+-- the createCombinations function and applies ruleCmp to every set
+-- in order to create sets that can be inserted into the database.
 createSets :: Database -> Clause -> Vector (Maybe (Vector String))
 createSets db c = V.map (ruleCmp db $ baseRule c) options 
 	where
-		options :: Vector2 (String, String)
 		options = V.filter (\x -> (V.length . vnub . V.map snd) x == V.length x) $ createCombinations $ M.toList $ variableMap c
 
 
+-- | This function takes a database in list format and converts it into all
+-- variable combinations and then pass it on as a 2D vector with (name, val)
+-- relations.
 createCombinations :: [(String, Vector String)] -> Vector2 (String, String)
 createCombinations [] = V.empty
 createCombinations xs = initializator . map (uncurry combinator) $ xs
 	where
-		go :: Vector2 (String, String) -> [Vector (String, String)] -> Vector2 (String, String)
 		go acc [] = acc
 		go acc (x:xs) = go (V.concat . V.toList $ V.map (\a -> V.map (`V.cons`a) x) acc) xs
-
-		combinator :: String -> Vector String -> Vector (String, String)
 		combinator a = V.map (a,)
-
-		initializator :: [Vector (String, String)] -> Vector2 (String, String)
 		initializator (x:xs) = go (V.map return x) xs
+
 
 -- |Used to compare rules resulting in a maybe set of variables if
 -- the expression is valid.
@@ -95,14 +96,16 @@ ruleCmp db (Imply (Relation _ vars) r2) vlist = if isJust $ applyCmp db vlist r2
 ruleCmp db  _ vlist = Nothing
 
 
+-- | Helper function for Relation compareing.
 relationCmp :: Database -> Vector (String, String) -> String -> Vector String -> Maybe (Vector String)
 relationCmp db vlist name x = if V.any ((/="_") . fst) vlist
 							then assertExist db name x
 							else Just x
 
 
+-- | Returns Just x, given that x is defined in the database else Nothing.
 assertExist :: Database -> String -> Vector String -> Maybe (Vector String)
-assertExist (Database dm) name vars = case V.find (vars==) <$> M.lookup name dm of
+assertExist (Database db) name vars = case V.find (vars==) <$> M.lookup name db of
 					Just x -> x
 					Nothing -> Nothing
 
@@ -140,7 +143,7 @@ saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (\x 
 
 -- |Analyzes a rule, finding all dynamic variables.
 extractVars :: Rule -> [String]
-extractVars = extractRule $ filter (isUpper. head) . snd
+extractVars = extractRule $ filter (isUpper . head) . snd
 
 
 -- |Higher-order function that takes a rule and draws all the data from it using
@@ -189,16 +192,15 @@ evalVariables vars rs
 							then let (v1, v2) = V.splitAt 1 vs 
 								in ("_", V.head v1) `V.cons` go V.empty v2
 							else let 
-									(v1, v2) = V.splitAt 1 vs
-									(r1, r2) = V.splitAt 1 rs 
-									v = V.head v1
-									r = V.head r1
+									(v,v2) = vpatt vs
+									(r,r2) = vpatt rs
 								in if isUpper (head v) 
 							 		then (v, r) `V.cons` go v2 r2
 							 		else if v == r then ("_", r) `V.cons` go v2 r2
 							 		else V.empty
 
 
+-- Extra vector functions that did not exist in the standard vector library.
 vnub :: Eq a => Vector a -> Vector a
 vnub xs = go (xs, V.empty) V.empty
 	where

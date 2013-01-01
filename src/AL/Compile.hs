@@ -55,7 +55,7 @@ addClause :: Database -> Clause -> Database
 addClause db c = case baseRule c of
 	(Relation name _) -> go name
 	(Imply (Relation name _) r2) -> go name
-	where go name = Database $ M.insertWith union name (nub $ catMaybes $ createSets db c) (dmap db)
+	where go name = Database $ M.insertWith vunion name (vnub $ vcatMaybes $ createSets db c) (dmap db)
 
 
 -- |Takes a base rule and creates a clause from it.
@@ -63,26 +63,26 @@ compileClause :: Database -> Rule -> Clause
 compileClause db = saturateCandidates db . (flip Clause) M.empty
 
 
-createSets :: Database -> Clause -> [Maybe [String]]
+createSets :: Database -> Clause -> Vector (Maybe (Vector String))
 createSets db c = V.map (ruleCmp db $ baseRule c) options 
 	where
 		options :: Vector2 (String, String)
-		options = filter (\x -> (length . nub . map snd) x == length x) $ createCombinations $ M.toList $ variableMap c
+		options = V.filter (\x -> (V.length . vnub . V.map snd) x == V.length x) $ createCombinations $ M.toList $ variableMap c
 
 
-createCombinations :: [(String, Vector String)] -> Vector2 String
+createCombinations :: [(String, Vector String)] -> Vector2 (String, String)
 createCombinations [] = V.empty
-createCombinations xs = (\(x:xs) -> go (V.map V.singleton x) xs) . V.fromList . (\(a,b) -> V.map (a,) b) $ xs
+createCombinations xs = initializator . map (uncurry combinator) $ xs
 	where
-		go :: Vector2 String -> Vector2 String -> Vector2 String
-		go acc vs = if V.null vs 
-						then V.empty 
-						else 
-							let 
-								(v1,v2) = V.splitAt 1 vs
-								v = V.head v1
-							in go (V.concat $ V.map (\a -> V.map (`V.cons`a) v) acc) v2
+		go :: Vector2 (String, String) -> [Vector (String, String)] -> Vector2 (String, String)
+		go acc [] = acc
+		go acc (x:xs) = go (V.concat . V.toList $ V.map (\a -> V.map (`V.cons`a) x) acc) xs
 
+		combinator :: String -> Vector String -> Vector (String, String)
+		combinator a = V.map (a,)
+
+		initializator :: [Vector (String, String)] -> Vector2 (String, String)
+		initializator (x:xs) = go (V.map return x) xs
 
 -- |Used to compare rules resulting in a maybe set of variables if
 -- the expression is valid.
@@ -199,15 +199,30 @@ evalVariables vars rs
 							 		else V.empty
 
 
+vnub :: Eq a => Vector a -> Vector a
+vnub xs = go (xs, V.empty) V.empty
+	where
+		go (vss,acc) existing 
+			| V.null vss = acc
+		 	| otherwise = let (v,vs) = vpatt vss in
+					if V.elem v existing 
+						then go (vs, acc) existing
+						else go (vs, V.cons v acc) $ V.cons v existing
+
+
+vpatt :: Vector a -> (a, Vector a)
+vpatt = (\(a,b) -> (V.head a, b)) . V.splitAt 1
+
+
 staticVarEval :: [String] -> Vector2 (String, String)
 staticVarEval = return . V.map ("_",) . V.fromList
 
 
 vcatMaybes :: Vector (Maybe a) -> Vector a
-vcatMaybes = V.filter isJust
+vcatMaybes = V.map fromJust . V.filter isJust
 
 
-vunion :: Vector a -> Vector a -> Vector a
+vunion :: Eq a => Vector a -> Vector a -> Vector a
 vunion v1 v2 = (v2 V.++) $ V.filter (`V.notElem`v2) v1
 
 
@@ -225,28 +240,8 @@ vlookup query xs = if V.null xs
 
 -- Testing
 tests = test [
-		"extractVars1" ~: ["X", "Y", "Z"] ~=? extractVars (Imply (Relation "w" ["X"]) (And (Relation "bla" ["X", "Y"]) (Relation "bly" ["Z", "X"])))
-
-		,"createVarMap1" ~: M.fromList [("X", ["bob", "steve"]), ("Y", ["pete"])] ~=? createVarMap _testVarMap
-
-		,"createCombinations" ~: [[("X", "bob")], [("X", "steve")]] ~=? createCombinations [("X", ["bob", "steve"])]
-		,"createSets" ~: [Just ["bob"], Just ["steve"]] ~=? createSets _testDB2 (compileClause _testDB2 $ Relation "name" ["X"])
-		,"createSets" ~: [Just ["bob", "bacon"]] ~=? createSets _testDB2 (compileClause _testDB2 $ Relation "eat" ["X", "Y"])
-
-		,"Relation1" ~: M.fromList [("work", [["bob"]])] ~=? dmap ((_ce . compileClause emptyDB) $ Relation "work" ["bob"])
-		, "AndNot1" ~: [["steve"]] ~=?  ((M.! "lame") . dmap) (addClause _testDB2 $ compileClause _tdb1 $ Imply (Relation "lame" ["X"]) $ AndNot (Relation "name" ["X"]) (Relation "eat" ["X", "bacon"]) )
-		, "AndNot2" ~: [["peter"]] ~=? ((M.! "unhappy") . dmap) (addClause _tdb2 $ compileClause _tdb2 $ Imply (Relation "unhappy" ["X"]) $ AndNot (Relation "love" ["X", "Y"]) (Relation "love" ["Y", "X"]) )
+		"dummy" ~: True ~=? 1 == 1
 	]
-
-_testRule2 = (Imply (Relation "eat" ["X", "Y"]) (And (Relation "food" ["X"]) (Relation "hunter" ["Y"]) ) )
-_testRule1 = (Relation "work" ["X", "Y"])
-
-_ce = addClause (Database M.empty)
-_tdb1 = fromJust $ compile' "$name bob;$name steve;$eat bob bacon;"
-_tdb2 = fromJust $ compile' "$love romeo julia;$love julia romeo;$love peter julia;"
-_testVarMap = [[("X", "bob"), ("Y", "pete")], [("X", "steve")]]
-_testDB = M.fromList [("love", [["romeo", "julia"], ["julia", "romeo"], ["peter", "julia"]])]
-_testDB2 = Database $ M.fromList [("name", [["bob"], ["steve"]]), ("eat", [["bob", "bacon"]])]
 
 -- For debugging
 debug :: IO Database

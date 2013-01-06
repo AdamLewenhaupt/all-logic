@@ -11,16 +11,13 @@ import Control.Monad (liftM)
 import Data.Maybe (catMaybes, isJust, fromJust)
 import Data.Char (isUpper, isLower)
 import qualified Data.Map as M
-import Data.List (foldl', union, (\\), intersect, nub, find)
-import Data.Foldable (foldr')
-import Control.Applicative ((<*>), (<$>))
+import Data.List (foldl', union)
+import Control.Applicative ((<$>))
 import qualified Data.Vector as V
 import Test.HUnit
 
 import ALogic.Core
 import ALogic.Parse hiding (tests)
-
-import Prelude hiding (Either(..))
 
 type Vector a = V.Vector a
 type Vector2 a = Vector (Vector a)

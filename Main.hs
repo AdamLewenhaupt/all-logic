@@ -1,6 +1,6 @@
 module Main where
 
-import AL
+import ALogic
 
 main :: IO ()
 main = do

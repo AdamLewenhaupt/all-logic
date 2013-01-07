@@ -31,13 +31,10 @@ data Database = Database {
 
 type Variables = M.Map String (Vector String)
 
-data Cmp = Left | Right | Both
-
 data Clause = Clause {
 		baseRule :: Rule, 
 		variableMap :: Variables
-	}
-	deriving(Show)
+	} deriving(Show)
 
 
 -- |The compiler function takes a string and converts
@@ -198,9 +195,16 @@ evalVariables vars rs
    		            	else if v == r 
    		            		then ("_", r) `V.cons` go v2 r2 
    		            		else V.empty
-   
+
+
+-- |Given a set of strings, convert them to static variables.
+staticVarEval :: [String] -> Vector2 (String, String)
+staticVarEval = return . V.map ("_",) . V.fromList
+
 
 -- Extra vector functions that did not exist in the standard vector library.
+
+-- |Home-made version of nub for vectors.
 vnub :: Eq a => Vector a -> Vector a
 vnub xs = go (xs, V.empty) V.empty
 	where
@@ -212,22 +216,23 @@ vnub xs = go (xs, V.empty) V.empty
 						else go (vs, V.cons v acc) $ V.cons v existing
 
 
+-- |Used as a helper function that acts like the pattern match
+-- f (x:xs) = ... Can for example be used as such: let (x,xs) = vpatt vs in ...
 vpatt :: Vector a -> (a, Vector a)
 vpatt = first V.head . V.splitAt 1
 
 
-staticVarEval :: [String] -> Vector2 (String, String)
-staticVarEval = return . V.map ("_",) . V.fromList
-
-
+-- |Home-made version of catMaybes for vectors.
 vcatMaybes :: Vector (Maybe a) -> Vector a
 vcatMaybes = V.map fromJust . V.filter isJust
 
 
+-- |Home-made version of union for vectors.
 vunion :: Eq a => Vector a -> Vector a -> Vector a
 vunion v1 v2 = (v2 V.++) $ V.filter (`V.notElem`v2) v1
 
 
+-- |Home-made version of lookup for vectors.
 vlookup :: Ord a => a -> Vector (a, b) -> Maybe b
 vlookup query xs = if V.null xs 
 						then Nothing 

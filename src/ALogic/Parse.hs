@@ -6,7 +6,7 @@ module ALogic.Parse (
 import Text.ParserCombinators.Parsec hiding(spaces)
 import Text.Parsec hiding (try, spaces)
 import Data.Maybe (isJust, catMaybes, fromJust)
-import Control.Monad (liftM)
+import Control.Monad (liftM, void)
 import Control.Applicative ((<*>))
 import Test.HUnit
 
@@ -31,7 +31,7 @@ defaultSymbols = "-<>!&|()"
 
 
 -- |A lookup list of all the operators.
-ops :: [(String, (Rule -> Rule -> Rule))]
+ops :: [(String, Rule -> Rule -> Rule)]
 ops = [
 		("<-", Imply),
 		("!<-", ImplyNot),
@@ -48,13 +48,13 @@ makeRel _ = Nothing
 
 
 -- |Takes a lookup list with operators and their actions, and then tries to create a rule from it.
-compileOPs :: [(String, (Rule -> Rule -> Rule))] -> String -> ALVal -> [ALVal] -> Maybe Rule
+compileOPs :: [(String, Rule -> Rule -> Rule)] -> String -> ALVal -> [ALVal] -> Maybe Rule
 compileOPs ops s a bs = lookup s ops <*> constructData [a] <*> constructData bs
 
 
 -- |Given a set of ALVals tries to find a way to infer a rule, else return Nothing.
 constructData :: [ALVal] -> Maybe Rule
-constructData (a:(OP s):bs) = compileOPs ops s a bs
+constructData (a:OP s:bs) = compileOPs ops s a bs
 constructData [x@(Var n xs)] = makeRel x
 constructData [x@(Para xs)] = constructData xs
 constructData _ = Nothing
@@ -81,7 +81,7 @@ rule = sepBy1 var spaces
 -- |This function tries all combinations of ALVals until it finds one.
 var :: Parser ALVal
 var = choice [
-			try (para (liftM Para $ rule)),
+			try (para (liftM Para rule)),
 			try pVar,
 			try (liftM OP $ many1 $ oneOf defaultSymbols),
 			try (liftM Val $ many1 $ letter <|> digit), 
@@ -99,12 +99,12 @@ pVar = do
 
 -- |Just skipps some spaces.
 spaces :: Parser ()
-spaces = skipMany1 $ space
+spaces = skipMany1 space
 
 
 -- |Used to find out if the next character is a symbol without reading it.
 symbols :: Parser ()
-symbols = lookAhead $ many space >> oneOf (defaultSymbols ++ ";") >> return ()
+symbols = lookAhead $ void $ many space >> oneOf (defaultSymbols ++ ";")
 
 
 -- |Used to parse everything between two paranthesis.

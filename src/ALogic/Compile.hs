@@ -8,12 +8,13 @@ module ALogic.Compile (
 	) where
 
 import Control.Monad (liftM)
-import Data.Maybe (catMaybes, isJust, fromJust)
+import Data.Maybe (catMaybes, isJust, fromJust, mapMaybe, fromMaybe)
 import Data.Char (isUpper, isLower)
 import qualified Data.Map as M
 import Data.List (foldl', union)
 import Control.Applicative ((<$>))
 import qualified Data.Vector as V
+import Control.Arrow (first)
 import Test.HUnit
 
 import ALogic.Core
@@ -42,7 +43,7 @@ data Clause = Clause {
 -- |The compiler function takes a string and converts
 -- it into a AL database if the parse is successfull else Nothing.
 compile' :: String -> Maybe Database
-compile' = liftM createDB' . liftM catMaybes . parseAL
+compile' = liftM (createDB' . catMaybes) . parseAL
 
 
 createDB' :: [Rule] -> Database
@@ -61,7 +62,7 @@ addClause db c = case baseRule c of
 
 -- |Takes a base rule and creates a clause from it.
 compileClause :: Database -> Rule -> Clause
-compileClause db = saturateCandidates db . (flip Clause) M.empty
+compileClause db = saturateCandidates db . flip Clause M.empty
 
 
 -- | The createSets function uses the information that is gathered by
@@ -80,8 +81,8 @@ createCombinations :: [(String, Vector String)] -> Vector2 (String, String)
 createCombinations [] = V.empty
 createCombinations xs = initializator . map (uncurry combinator) $ xs
 	where
-		go acc [] = acc
-		go acc (x:xs) = go (V.concat . V.toList $ V.map (\a -> V.map (`V.cons`a) x) acc) xs
+		go = foldl go'
+		go' acc x = V.concat . V.toList $ V.map (\ a -> V.map (`V.cons` a) x) acc
 		combinator a = V.map (a,)
 		initializator (x:xs) = go (V.map return x) xs
 
@@ -90,10 +91,10 @@ createCombinations xs = initializator . map (uncurry combinator) $ xs
 -- the expression is valid.
 ruleCmp :: Database -> Rule -> Vector (String, String) -> Maybe (Vector String)
 ruleCmp db (Relation name vars) vlist = relationCmp db vlist name $ vcatMaybes $ V.map (satRelVar vlist) $ V.fromList vars 
-ruleCmp db (And r1 r2) vlist = (liftM V.fromList . boolToMby . (==2) . length . catMaybes . map (applyCmp db vlist) ) [r1, r2]
-ruleCmp db (Or r1 r2) vlist = (liftM V.fromList . boolToMby . not . null . catMaybes . map (applyCmp db vlist) ) [r1, r2]
+ruleCmp db (And r1 r2) vlist = (liftM V.fromList . boolToMby . (==2) . length . mapMaybe (applyCmp db vlist) ) [r1, r2]
+ruleCmp db (Or r1 r2) vlist = (liftM V.fromList . boolToMby . not . null . mapMaybe (applyCmp db vlist) ) [r1, r2]
 ruleCmp db (AndNot r1 r2) vlist = (liftM V.fromList . boolToMby . validAndNot . map (applyCmp db vlist) ) [r1, r2] 
-ruleCmp db (Imply (Relation _ vars) r2) vlist = if isJust $ applyCmp db vlist r2 then Just . V.fromList $ catMaybes $ map (satRelVar vlist) vars else Nothing
+ruleCmp db (Imply (Relation _ vars) r2) vlist = if isJust $ applyCmp db vlist r2 then Just . V.fromList $ mapMaybe (satRelVar vlist) vars else Nothing
 ruleCmp db  _ vlist = Nothing
 
 
@@ -106,9 +107,7 @@ relationCmp db vlist name x = if V.any ((/="_") . fst) vlist
 
 -- | Returns Just x, given that x is defined in the database else Nothing.
 assertExist :: Database -> String -> Vector String -> Maybe (Vector String)
-assertExist (Database db) name vars = case V.find (vars==) <$> M.lookup name db of
-					Just x -> x
-					Nothing -> Nothing
+assertExist (Database db) name vars = fromMaybe Nothing $ V.find (vars==) <$> M.lookup name db
 
 
 -- |Saturate relation with variable
@@ -119,7 +118,7 @@ satRelVar vlist x = if isUpper $ head x
 
 -- |Used for recursive comparing
 applyCmp :: Database -> Vector (String, String) -> Rule -> Maybe (Vector String)
-applyCmp db vlist = (flip (ruleCmp db) $ vlist)
+applyCmp db = flip (ruleCmp db)
 
 
 -- |Check out if a AndNot expression is valid.
@@ -135,7 +134,7 @@ boolToMby x = if x then Just [] else Nothing
 
 -- |Transform a clause, saturationg all the variable combinations.
 saturateCandidates :: Database -> Clause -> Clause
-saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (\x -> [x]) $ base
+saturateCandidates db clause = Clause base $ foldl' go varMap $ extractRule (:[]) base
 	where
 		base = baseRule clause
 		varMap = variableMap clause
@@ -176,9 +175,7 @@ getEntriesMarked db@(Database m) vars = evalVariables vars . getEntries db
 
 -- |Root wrapper for getting database information.
 getEntries :: Database -> String -> Vector2 String
-getEntries db@(Database m) query = case M.lookup query $ dmap db of
-	Just x -> x
-	Nothing -> V.empty
+getEntries db@(Database m) query = fromMaybe V.empty $ M.lookup query $ dmap db
 
 
 -- This function provides the desired variable combinations.
@@ -187,19 +184,21 @@ evalVariables vars rs
 		| all (isLower . head) vars = staticVarEval vars
 		| otherwise  = V.filter ((== V.length (V.head rs)). V.length) $ V.map (go $ V.fromList vars) rs
 	where
-		go vs rs = if V.null vs 
-						then V.empty 
-						else if V.null rs
-							then let (v1, v2) = V.splitAt 1 vs 
-								in ("_", V.head v1) `V.cons` go V.empty v2
-							else let 
-									(v,v2) = vpatt vs
-									(r,r2) = vpatt rs
-								in if isUpper (head v) 
-							 		then (v, r) `V.cons` go v2 r2
-							 		else if v == r then ("_", r) `V.cons` go v2 r2
-							 		else V.empty
-
+		go vs rs
+   		    | V.null vs = V.empty
+   		    | V.null rs =
+   		        let (v1, v2) = V.splitAt 1 vs in
+   		            ("_", V.head v1) `V.cons` go V.empty v2
+   		    | otherwise =
+   		        let (v, v2) = vpatt vs
+   		            (r, r2) = vpatt rs
+   		            in
+   		            if isUpper (head v) 
+   		            	then (v, r) `V.cons` go v2 r2 
+   		            	else if v == r 
+   		            		then ("_", r) `V.cons` go v2 r2 
+   		            		else V.empty
+   
 
 -- Extra vector functions that did not exist in the standard vector library.
 vnub :: Eq a => Vector a -> Vector a
@@ -208,13 +207,13 @@ vnub xs = go (xs, V.empty) V.empty
 		go (vss,acc) existing 
 			| V.null vss = acc
 		 	| otherwise = let (v,vs) = vpatt vss in
-					if V.elem v existing 
+					if v `V.elem` existing 
 						then go (vs, acc) existing
 						else go (vs, V.cons v acc) $ V.cons v existing
 
 
 vpatt :: Vector a -> (a, Vector a)
-vpatt = (\(a,b) -> (V.head a, b)) . V.splitAt 1
+vpatt = first V.head . V.splitAt 1
 
 
 staticVarEval :: [String] -> Vector2 (String, String)
@@ -242,10 +241,8 @@ vlookup query xs = if V.null xs
 
 
 -- Testing
+-- Are to be redone, they required quite some tinkering
+-- after vectors were added.
 tests = test [
 		"dummy" ~: True ~=? 1 == 1
 	]
-
--- For debugging
-debug :: IO Database
-debug = readFile "test.txt" >>= (return . fromJust . compile')

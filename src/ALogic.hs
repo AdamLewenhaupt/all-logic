@@ -20,4 +20,4 @@ createDB = createDB'
 -- |This function should be used to state
 -- queries to an AL database.
 query :: Database -> String -> Maybe [[String]]
-query c s = liftM (map V.toList) $ liftM V.toList $ M.lookup s $ dmap c
+query c s = liftM (map V.toList . V.toList) $ M.lookup s $ dmap c

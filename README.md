@@ -6,7 +6,7 @@ All-logic provides a way for haskellers to use basic logic
 statements to build logical rules that can be used easily
 in haskell.
 
-In order to make it as easy as possible to use the library one can use it as an interpreter that parses text files and gives back a Database that can be queried.
+In order to simplify the library one can choose to use it as an interpreter that parses text files and gives back a Database that can be queried.
 
 If speed is of the essence it's also possible to create a database directly from the datatypes in the ALogic.Core module.
 
